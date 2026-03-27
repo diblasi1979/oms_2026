@@ -22,6 +22,9 @@ public sealed class ShipmentResponse
     public Guid OrderId { get; init; }
     public Guid? CarrierId { get; init; }
     public string Customer { get; init; } = string.Empty;
+    public Guid CustomerTypeId { get; init; }
+    public string CustomerTypeCode { get; init; } = string.Empty;
+    public string CustomerTypeName { get; init; } = string.Empty;
     public string RecipientName { get; init; } = string.Empty;
     public string RecipientPhone { get; init; } = string.Empty;
     public string RecipientEmail { get; init; } = string.Empty;
@@ -78,7 +81,12 @@ public sealed class ShipmentPricingRuleResponse
 {
     public Guid Id { get; init; }
     public string RuleName { get; init; } = string.Empty;
+    public Guid CustomerTypeId { get; init; }
+    public string CustomerTypeCode { get; init; } = string.Empty;
+    public string CustomerTypeName { get; init; } = string.Empty;
     public string PostalCodePrefix { get; init; } = string.Empty;
+    public Guid CarrierId { get; init; }
+    public string CarrierName { get; init; } = string.Empty;
     public decimal BaseCost { get; init; }
 }
 
@@ -93,18 +101,27 @@ public sealed class UpdateShipmentPricingRuleRequest
 {
     public Guid? Id { get; set; }
     public string RuleName { get; set; } = string.Empty;
+    public Guid CustomerTypeId { get; set; }
     public string PostalCodePrefix { get; set; } = string.Empty;
+    public Guid CarrierId { get; set; }
     public decimal BaseCost { get; set; }
 }
 
 public sealed class ShipmentPricingQuoteRequest
 {
+    public Guid CustomerTypeId { get; set; }
+    public Guid CarrierId { get; set; }
     public string DestinationPostalCode { get; set; } = string.Empty;
     public bool IncludeInsurance { get; set; } = true;
 }
 
 public sealed class ShipmentPricingQuoteResponse
 {
+    public Guid CustomerTypeId { get; init; }
+    public string CustomerTypeCode { get; init; } = string.Empty;
+    public string CustomerTypeName { get; init; } = string.Empty;
+    public Guid CarrierId { get; init; }
+    public string CarrierName { get; init; } = string.Empty;
     public string DestinationPostalCode { get; init; } = string.Empty;
     public string? MatchedRuleName { get; init; }
     public string? MatchedPostalCodePrefix { get; init; }
@@ -141,6 +158,9 @@ internal sealed class ShipmentRecord
     public Guid Id { get; init; }
     public Guid OrderId { get; init; }
     public string Customer { get; init; } = string.Empty;
+    public Guid CustomerTypeId { get; init; }
+    public string CustomerTypeCode { get; init; } = string.Empty;
+    public string CustomerTypeName { get; init; } = string.Empty;
     public string RecipientName { get; init; } = string.Empty;
     public string RecipientPhone { get; init; } = string.Empty;
     public string RecipientEmail { get; init; } = string.Empty;

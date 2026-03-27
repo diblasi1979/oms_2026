@@ -37,7 +37,22 @@ public sealed class ShipmentPricingController : ControllerBase
         }
     }
 
+    [HttpGet("quote")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ShipmentPricingQuoteResponse>> GetQuote([FromQuery] ShipmentPricingQuoteRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _shipmentPricingService.QuoteAsync(request, cancellationToken));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
     [HttpPost("quote")]
+    [AllowAnonymous]
     public async Task<ActionResult<ShipmentPricingQuoteResponse>> Quote([FromBody] ShipmentPricingQuoteRequest request, CancellationToken cancellationToken)
     {
         try

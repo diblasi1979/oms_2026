@@ -121,9 +121,11 @@ export async function updateShipmentPricingSettings(token: string, payload: Ship
   }
 }
 
-export async function calculateShipmentQuote(token: string, destinationPostalCode: string, includeInsurance = true): Promise<ShipmentPricingQuote> {
+export async function calculateShipmentQuote(token: string, customerTypeId: string, carrierId: string, destinationPostalCode: string, includeInsurance = true): Promise<ShipmentPricingQuote> {
   try {
     const response = await axios.post<ShipmentPricingQuote>(`${SHIPMENTS_API_BASE_URL}/api/shipment-pricing/quote`, {
+      customerTypeId,
+      carrierId,
       destinationPostalCode,
       includeInsurance,
     }, {
@@ -135,6 +137,6 @@ export async function calculateShipmentQuote(token: string, destinationPostalCod
 
     return response.data
   } catch {
-    return getMockShipmentPricingQuote(destinationPostalCode, includeInsurance)
+    return getMockShipmentPricingQuote(customerTypeId, carrierId, destinationPostalCode, includeInsurance)
   }
 }

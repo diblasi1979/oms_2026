@@ -6,6 +6,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Orders_Origin_CreatedA
 CREATE INDEX IX_Orders_Origin_CreatedAt ON Orders (Origin, CreatedAt DESC);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Orders_CustomerTypeId' AND object_id = OBJECT_ID('Orders'))
+CREATE INDEX IX_Orders_CustomerTypeId ON Orders (CustomerTypeId);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_OrderItems_OrderId' AND object_id = OBJECT_ID('OrderItems'))
 CREATE INDEX IX_OrderItems_OrderId ON OrderItems (OrderId);
 GO
@@ -22,8 +26,20 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Shipments_CarrierId' A
 CREATE INDEX IX_Shipments_CarrierId ON Shipments (CarrierId);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Shipments_CustomerTypeId' AND object_id = OBJECT_ID('Shipments'))
+CREATE INDEX IX_Shipments_CustomerTypeId ON Shipments (CustomerTypeId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CustomerTypes_IsActive_Name' AND object_id = OBJECT_ID('CustomerTypes'))
+CREATE INDEX IX_CustomerTypes_IsActive_Name ON CustomerTypes (IsActive, Name);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Carriers_IsActive_Name' AND object_id = OBJECT_ID('Carriers'))
 CREATE INDEX IX_Carriers_IsActive_Name ON Carriers (IsActive, Name);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_ShipmentPricingRules_SettingsCustomerCarrierPrefix' AND object_id = OBJECT_ID('ShipmentPricingRules'))
+CREATE UNIQUE INDEX UQ_ShipmentPricingRules_SettingsCustomerCarrierPrefix ON ShipmentPricingRules (ShipmentPricingSettingsId, CustomerTypeId, PostalCodePrefix, CarrierId);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ShipmentEvents_ShipmentId_EventTimestamp' AND object_id = OBJECT_ID('ShipmentEvents'))
@@ -42,6 +58,14 @@ VALUES
 ('F5E10D20-8E72-4A9A-8C24-5B8A6B001003', 'Rosario Cross Dock', 'Rosario', 'Santa Fe', '2000', -32.944200, -60.650500);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM CustomerTypes)
+INSERT INTO CustomerTypes (CustomerTypeId, Code, Name, Description, IsActive, UpdatedAt)
+VALUES
+('7F3FBC62-B77F-4D2E-9C4C-000000000001', 'STANDARD', 'Standard', 'Clientes estándar con tarifa general.', 1, SYSUTCDATETIME()),
+('7F3FBC62-B77F-4D2E-9C4C-000000000002', 'PREMIUM', 'Premium', 'Clientes preferenciales con acuerdos comerciales específicos.', 1, SYSUTCDATETIME()),
+('7F3FBC62-B77F-4D2E-9C4C-000000000003', 'WHOLESALE', 'Mayorista', 'Clientes mayoristas o cuentas corporativas de alto volumen.', 1, SYSUTCDATETIME());
+GO
+
 IF NOT EXISTS (SELECT 1 FROM Inventory)
 INSERT INTO Inventory (InventoryId, Sku, WarehouseId, PhysicalStock, ReservedStock, LocationCode)
 VALUES
@@ -57,9 +81,9 @@ VALUES
 GO
 
 IF NOT EXISTS (SELECT 1 FROM Orders WHERE OrderId = 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801')
-INSERT INTO Orders (OrderId, Customer, Status, Origin, Total, DestinationCity, DestinationState, DestinationPostalCode, DestinationLatitude, DestinationLongitude, AssignedWarehouseId, ShipmentTrackingNumber, CreatedAt, UpdatedAt)
+INSERT INTO Orders (OrderId, Customer, CustomerTypeId, Status, Origin, Total, DestinationCity, DestinationState, DestinationPostalCode, DestinationLatitude, DestinationLongitude, AssignedWarehouseId, ShipmentTrackingNumber, CreatedAt, UpdatedAt)
 VALUES
-('C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', 'Distribuidora Norte', 'Preparing', 'Web', 683.60, 'Mendoza', 'Mendoza', '5500', -32.889500, -68.845800, 'F5E10D20-8E72-4A9A-8C24-5B8A6B001002', 'TRK-20260327-48291', DATEADD(HOUR, -6, SYSUTCDATETIME()), DATEADD(HOUR, -5, SYSUTCDATETIME()));
+('C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', 'Distribuidora Norte', '7F3FBC62-B77F-4D2E-9C4C-000000000001', 'Preparing', 'Web', 683.60, 'Mendoza', 'Mendoza', '5500', -32.889500, -68.845800, 'F5E10D20-8E72-4A9A-8C24-5B8A6B001002', 'TRK-20260327-48291', DATEADD(HOUR, -6, SYSUTCDATETIME()), DATEADD(HOUR, -5, SYSUTCDATETIME()));
 GO
 
 IF NOT EXISTS (SELECT 1 FROM OrderItems WHERE OrderId = 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801')
@@ -87,9 +111,23 @@ VALUES
 GO
 
 IF NOT EXISTS (SELECT 1 FROM Shipments WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')
-INSERT INTO Shipments (ShipmentId, OrderId, CarrierId, RecipientName, RecipientPhone, RecipientEmail, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, ShippingCost, DestinationAddress, CreatedAt, UpdatedAt)
+INSERT INTO Shipments (ShipmentId, OrderId, CarrierId, CustomerTypeId, RecipientName, RecipientPhone, RecipientEmail, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, ShippingCost, DestinationAddress, CreatedAt, UpdatedAt)
 VALUES
-('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', '6C1A2F12-0C19-4F23-9FB2-000000000001', 'Marcela Gomez', '+54 261 555 0101', 'marcela.gomez@example.com', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 18.50, 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
+('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', '6C1A2F12-0C19-4F23-9FB2-000000000001', '7F3FBC62-B77F-4D2E-9C4C-000000000001', 'Marcela Gomez', '+54 261 555 0101', 'marcela.gomez@example.com', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 18.50, 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
+GO
+
+IF NOT EXISTS (SELECT 1 FROM ShipmentPricingSettings WHERE ShipmentPricingSettingsId = 1)
+INSERT INTO ShipmentPricingSettings (ShipmentPricingSettingsId, DefaultBaseCost, InsuranceFlatCost, UpdatedAt)
+VALUES (1, 14.50, 3.25, SYSUTCDATETIME());
+GO
+
+IF NOT EXISTS (SELECT 1 FROM ShipmentPricingRules WHERE ShipmentPricingSettingsId = 1)
+INSERT INTO ShipmentPricingRules (ShipmentPricingRuleId, ShipmentPricingSettingsId, RuleName, CustomerTypeId, PostalCodePrefix, CarrierId, BaseCost, UpdatedAt)
+VALUES
+(NEWID(), 1, 'STANDARD AMBA Andreani', '7F3FBC62-B77F-4D2E-9C4C-000000000001', '1', '6C1A2F12-0C19-4F23-9FB2-000000000001', 9.50, SYSUTCDATETIME()),
+(NEWID(), 1, 'STANDARD Centro Andreani', '7F3FBC62-B77F-4D2E-9C4C-000000000001', '5', '6C1A2F12-0C19-4F23-9FB2-000000000001', 15.75, SYSUTCDATETIME()),
+(NEWID(), 1, 'STANDARD Litoral Andreani', '7F3FBC62-B77F-4D2E-9C4C-000000000001', '2', '6C1A2F12-0C19-4F23-9FB2-000000000001', 13.20, SYSUTCDATETIME()),
+(NEWID(), 1, 'PREMIUM Centro OCA', '7F3FBC62-B77F-4D2E-9C4C-000000000002', '5', '6C1A2F12-0C19-4F23-9FB2-000000000002', 12.90, SYSUTCDATETIME());
 GO
 
 IF NOT EXISTS (SELECT 1 FROM ShipmentEvents WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')

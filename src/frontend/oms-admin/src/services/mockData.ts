@@ -1,4 +1,28 @@
-import type { AuthSession, CarrierRecord, CreateShipmentPayload, OrderDetail, OrderSummary, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+import type { AuthSession, CarrierRecord, CreateShipmentPayload, CustomerTypeRecord, OrderDetail, OrderSummary, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+
+const mockCustomerTypes: CustomerTypeRecord[] = [
+  {
+    id: '7f3fbc62-b77f-4d2e-9c4c-000000000001',
+    code: 'STANDARD',
+    name: 'Standard',
+    description: 'Clientes estándar con tarifa general.',
+    isActive: true,
+  },
+  {
+    id: '7f3fbc62-b77f-4d2e-9c4c-000000000002',
+    code: 'PREMIUM',
+    name: 'Premium',
+    description: 'Clientes preferenciales con acuerdos comerciales específicos.',
+    isActive: true,
+  },
+  {
+    id: '7f3fbc62-b77f-4d2e-9c4c-000000000003',
+    code: 'WHOLESALE',
+    name: 'Mayorista',
+    description: 'Clientes mayoristas o cuentas corporativas de alto volumen.',
+    isActive: true,
+  },
+]
 
 const mockCarriers: CarrierRecord[] = [
   {
@@ -43,6 +67,9 @@ const mockOrders: OrderDetail[] = [
   {
     id: 'c71ab4d9-09a9-4dc0-bf89-e7614ed4b801',
     customer: 'Distribuidora Norte',
+    customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001',
+    customerTypeCode: 'STANDARD',
+    customerTypeName: 'Standard',
     status: 'Preparing',
     origin: 'Web',
     total: 683.6,
@@ -77,6 +104,9 @@ const mockOrders: OrderDetail[] = [
   {
     id: '85a2c699-96e2-43b5-b0f0-f5d8da5a7921',
     customer: 'Marketplace Center',
+    customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000002',
+    customerTypeCode: 'PREMIUM',
+    customerTypeName: 'Premium',
     status: 'Pending',
     origin: 'Marketplace',
     total: 1220,
@@ -145,11 +175,20 @@ export function getMockShipmentPricingSettings(): ShipmentPricingSettings {
     defaultBaseCost: 14.5,
     insuranceFlatCost: 3.25,
     rules: [
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000001', ruleName: 'AMBA', postalCodePrefix: '1', baseCost: 9.5 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000002', ruleName: 'Centro', postalCodePrefix: '5', baseCost: 15.75 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000003', ruleName: 'Litoral', postalCodePrefix: '2', baseCost: 13.2 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000001', ruleName: 'STANDARD AMBA Andreani', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001', customerTypeCode: 'STANDARD', customerTypeName: 'Standard', postalCodePrefix: '1', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000001', carrierName: 'Andreani', baseCost: 9.5 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000002', ruleName: 'STANDARD Centro Andreani', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001', customerTypeCode: 'STANDARD', customerTypeName: 'Standard', postalCodePrefix: '5', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000001', carrierName: 'Andreani', baseCost: 15.75 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000003', ruleName: 'STANDARD Litoral Andreani', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001', customerTypeCode: 'STANDARD', customerTypeName: 'Standard', postalCodePrefix: '2', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000001', carrierName: 'Andreani', baseCost: 13.2 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000004', ruleName: 'PREMIUM Centro OCA', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000002', customerTypeCode: 'PREMIUM', customerTypeName: 'Premium', postalCodePrefix: '5', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000002', carrierName: 'OCA', baseCost: 12.9 },
     ],
   }
+}
+
+export function getMockCustomerTypes(includeInactive = false): CustomerTypeRecord[] {
+  return includeInactive ? [...mockCustomerTypes] : mockCustomerTypes.filter((customerType) => customerType.isActive)
+}
+
+export function getMockCustomerTypeById(customerTypeId: string): CustomerTypeRecord | undefined {
+  return mockCustomerTypes.find((customerType) => customerType.id === customerTypeId)
 }
 
 export function getMockCarriers(includeInactive = false): CarrierRecord[] {
@@ -160,10 +199,13 @@ export function getMockCarrierById(carrierId: string): CarrierRecord | undefined
   return mockCarriers.find((carrier) => carrier.id === carrierId)
 }
 
-export function getMockShipmentPricingQuote(destinationPostalCode: string, includeInsurance = true): ShipmentPricingQuote {
+export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: string, destinationPostalCode: string, includeInsurance = true): ShipmentPricingQuote {
   const settings = getMockShipmentPricingSettings()
   const normalized = destinationPostalCode.replace(/[^a-z0-9]/gi, '').toUpperCase()
+  const customerType = getMockCustomerTypeById(customerTypeId)
+  const carrier = getMockCarrierById(carrierId)
   const match = [...settings.rules]
+    .filter((rule) => rule.customerTypeId === customerTypeId && rule.carrierId === carrierId)
     .sort((left, right) => right.postalCodePrefix.length - left.postalCodePrefix.length)
     .find((rule) => normalized.startsWith(rule.postalCodePrefix.toUpperCase()))
 
@@ -171,6 +213,11 @@ export function getMockShipmentPricingQuote(destinationPostalCode: string, inclu
   const insuranceCost = includeInsurance ? settings.insuranceFlatCost : 0
 
   return {
+    customerTypeId,
+    customerTypeCode: customerType?.code ?? 'STANDARD',
+    customerTypeName: customerType?.name ?? 'Standard',
+    carrierId,
+    carrierName: carrier?.name ?? 'Carrier no definido',
     destinationPostalCode: normalized,
     matchedRuleName: match?.ruleName ?? null,
     matchedPostalCodePrefix: match?.postalCodePrefix ?? null,
@@ -184,13 +231,16 @@ export function getMockShipmentPricingQuote(destinationPostalCode: string, inclu
 export function getMockCreatedShipment(payload: CreateShipmentPayload): ShipmentRecord {
   const order = getMockOrderById(payload.orderId)
   const carrier = getMockCarrierById(payload.carrierId)
-  const quote = getMockShipmentPricingQuote(order?.destinationPostalCode ?? '1001', payload.includeInsurance)
+  const quote = getMockShipmentPricingQuote(order?.customerTypeId ?? '7f3fbc62-b77f-4d2e-9c4c-000000000001', payload.carrierId, order?.destinationPostalCode ?? '1001', payload.includeInsurance)
 
   return {
     id: `mock-shipment-${payload.orderId}`,
     orderId: payload.orderId,
     carrierId: payload.carrierId,
     customer: payload.customer,
+    customerTypeId: order?.customerTypeId ?? '7f3fbc62-b77f-4d2e-9c4c-000000000001',
+    customerTypeCode: order?.customerTypeCode ?? 'STANDARD',
+    customerTypeName: order?.customerTypeName ?? 'Standard',
     recipientName: payload.recipientName,
     recipientPhone: payload.recipientPhone,
     recipientEmail: payload.recipientEmail,

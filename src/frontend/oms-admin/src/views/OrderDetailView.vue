@@ -92,6 +92,10 @@ onMounted(loadOrder)
                 <strong>{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(order.total) }}</strong>
               </div>
               <div>
+                <span>Tipo de cliente</span>
+                <strong>{{ order.customerTypeName }} · {{ order.customerTypeCode }}</strong>
+              </div>
+              <div>
                 <span>Unidades</span>
                 <strong>{{ totalUnits }}</strong>
               </div>

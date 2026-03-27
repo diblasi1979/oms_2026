@@ -19,6 +19,7 @@ public sealed class OrdersService
     {
         var query = _dbContext.Orders
             .AsNoTracking()
+            .Include(order => order.CustomerType)
             .Include(order => order.AssignedWarehouse)
             .AsQueryable();
 
@@ -50,6 +51,7 @@ public sealed class OrdersService
     {
         var order = await _dbContext.Orders
             .AsNoTracking()
+            .Include(current => current.CustomerType)
             .Include(current => current.AssignedWarehouse)
             .Include(current => current.Items)
             .Include(current => current.Logs)
@@ -67,6 +69,11 @@ public sealed class OrdersService
             throw new InvalidOperationException("El cliente es obligatorio.");
         }
 
+        if (request.CustomerTypeId == Guid.Empty)
+        {
+            throw new InvalidOperationException("El tipo de cliente es obligatorio.");
+        }
+
         if (request.Items.Count == 0)
         {
             throw new InvalidOperationException("La orden debe contener al menos un item.");
@@ -78,6 +85,15 @@ public sealed class OrdersService
         }
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+
+        var customerType = await _dbContext.CustomerTypes
+            .SingleOrDefaultAsync(current => current.CustomerTypeId == request.CustomerTypeId, cancellationToken)
+            ?? throw new InvalidOperationException("El tipo de cliente seleccionado no existe.");
+
+        if (!customerType.IsActive)
+        {
+            throw new InvalidOperationException("El tipo de cliente seleccionado está inactivo.");
+        }
 
         var allocation = await SelectWarehouseAsync(request, cancellationToken);
         var requestItemsBySku = request.Items.ToDictionary(item => item.Sku.Trim(), StringComparer.OrdinalIgnoreCase);
@@ -104,6 +120,7 @@ public sealed class OrdersService
         {
             OrderId = Guid.NewGuid(),
             Customer = request.Customer.Trim(),
+            CustomerTypeId = customerType.CustomerTypeId,
             Status = OrderStatus.Pending.ToString(),
             Origin = request.Origin.ToString(),
             Total = request.Items.Sum(item => item.Quantity * item.UnitPrice),
@@ -141,6 +158,7 @@ public sealed class OrdersService
     public async Task<OrderDetailResponse> UpdateStatusAsync(Guid orderId, OrderStatus status, CancellationToken cancellationToken = default)
     {
         var order = await _dbContext.Orders
+            .Include(current => current.CustomerType)
             .Include(current => current.AssignedWarehouse)
             .Include(current => current.Items)
             .Include(current => current.Logs)
@@ -213,6 +231,9 @@ public sealed class OrdersService
     {
         Id = order.OrderId,
         Customer = order.Customer,
+        CustomerTypeId = order.CustomerTypeId,
+        CustomerTypeCode = order.CustomerType.Code,
+        CustomerTypeName = order.CustomerType.Name,
         Status = Enum.Parse<OrderStatus>(order.Status, true),
         Origin = Enum.Parse<OrderOrigin>(order.Origin, true),
         Total = order.Total,
@@ -225,6 +246,9 @@ public sealed class OrdersService
     {
         Id = order.OrderId,
         Customer = order.Customer,
+        CustomerTypeId = order.CustomerTypeId,
+        CustomerTypeCode = order.CustomerType.Code,
+        CustomerTypeName = order.CustomerType.Name,
         Status = Enum.Parse<OrderStatus>(order.Status, true),
         Origin = Enum.Parse<OrderOrigin>(order.Origin, true),
         Total = order.Total,

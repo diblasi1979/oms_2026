@@ -21,6 +21,8 @@ public sealed class ShipmentsService
         var shipments = await _dbContext.Shipments
             .AsNoTracking()
             .Include(shipment => shipment.Order)
+            .ThenInclude(order => order.CustomerType)
+            .Include(shipment => shipment.CustomerType)
             .Include(shipment => shipment.Events)
             .OrderByDescending(shipment => shipment.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -33,6 +35,8 @@ public sealed class ShipmentsService
         var shipment = await _dbContext.Shipments
             .AsNoTracking()
             .Include(current => current.Order)
+            .ThenInclude(current => current.CustomerType)
+            .Include(current => current.CustomerType)
             .Include(current => current.Events)
             .SingleOrDefaultAsync(current => current.ShipmentId == shipmentId, cancellationToken);
 
@@ -48,6 +52,7 @@ public sealed class ShipmentsService
 
         var order = await _dbContext.Orders
             .Include(current => current.Shipments)
+            .Include(current => current.CustomerType)
             .SingleOrDefaultAsync(current => current.OrderId == request.OrderId, cancellationToken)
             ?? throw new KeyNotFoundException("La orden asociada al envío no existe.");
 
@@ -65,13 +70,14 @@ public sealed class ShipmentsService
             throw new InvalidOperationException("El carrier seleccionado no admite seguro.");
         }
 
-        var pricingQuote = await _shipmentPricingService.QuoteAsync(order.DestinationPostalCode, request.IncludeInsurance, cancellationToken);
+        var pricingQuote = await _shipmentPricingService.QuoteAsync(order.CustomerTypeId, carrier.CarrierId, order.DestinationPostalCode, request.IncludeInsurance, cancellationToken);
 
         var shipment = new ShipmentEntity
         {
             ShipmentId = Guid.NewGuid(),
             OrderId = request.OrderId,
             CarrierId = carrier.CarrierId,
+            CustomerTypeId = order.CustomerTypeId,
             RecipientName = request.RecipientName.Trim(),
             RecipientPhone = request.RecipientPhone.Trim(),
             RecipientEmail = request.RecipientEmail.Trim(),
@@ -117,6 +123,8 @@ public sealed class ShipmentsService
 
         var shipment = await _dbContext.Shipments
             .Include(current => current.Order)
+            .ThenInclude(current => current.CustomerType)
+            .Include(current => current.CustomerType)
             .Include(current => current.Events)
             .SingleOrDefaultAsync(current => current.TrackingNumber == request.TrackingNumber, cancellationToken)
             ?? throw new KeyNotFoundException("No se encontró un envío con el tracking informado.");
@@ -192,6 +200,9 @@ public sealed class ShipmentsService
         OrderId = shipment.OrderId,
         CarrierId = shipment.CarrierId,
         Customer = shipment.Order.Customer,
+        CustomerTypeId = shipment.CustomerTypeId,
+        CustomerTypeCode = shipment.CustomerType.Code,
+        CustomerTypeName = shipment.CustomerType.Name,
         RecipientName = shipment.RecipientName,
         RecipientPhone = shipment.RecipientPhone,
         RecipientEmail = shipment.RecipientEmail,

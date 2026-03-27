@@ -18,6 +18,9 @@ export interface AuthSession {
 export interface OrderSummary {
   id: string
   customer: string
+  customerTypeId: string
+  customerTypeCode: string
+  customerTypeName: string
   status: OrderStatus
   origin: OrderOrigin
   total: number
@@ -84,6 +87,9 @@ export interface ShipmentRecord {
   orderId: string
   carrierId?: string | null
   customer: string
+  customerTypeId: string
+  customerTypeCode: string
+  customerTypeName: string
   recipientName: string
   recipientPhone: string
   recipientEmail: string
@@ -130,7 +136,12 @@ export interface CarrierUpsertPayload {
 export interface ShipmentPricingRule {
   id?: string
   ruleName: string
+  customerTypeId: string
+  customerTypeCode?: string
+  customerTypeName?: string
   postalCodePrefix: string
+  carrierId: string
+  carrierName?: string
   baseCost: number
 }
 
@@ -141,6 +152,11 @@ export interface ShipmentPricingSettings {
 }
 
 export interface ShipmentPricingQuote {
+  customerTypeId: string
+  customerTypeCode: string
+  customerTypeName: string
+  carrierId: string
+  carrierName: string
   destinationPostalCode: string
   matchedRuleName?: string | null
   matchedPostalCodePrefix?: string | null
@@ -148,4 +164,19 @@ export interface ShipmentPricingQuote {
   baseShippingCost: number
   insuranceCost: number
   totalShippingCost: number
+}
+
+export interface CustomerTypeRecord {
+  id: string
+  code: string
+  name: string
+  description: string
+  isActive: boolean
+}
+
+export interface CustomerTypeUpsertPayload {
+  code: string
+  name: string
+  description: string
+  isActive: boolean
 }

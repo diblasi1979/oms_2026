@@ -100,6 +100,7 @@ onMounted(loadOrders)
           <div class="header-actions">
             <Button label="Nuevo envío" icon="pi pi-send" @click="router.push({ name: 'shipment-create' })" />
             <Button v-if="authStore.role === 'Admin'" label="Carriers" severity="secondary" outlined icon="pi pi-truck" @click="router.push({ name: 'carriers-settings' })" />
+            <Button v-if="authStore.role === 'Admin'" label="Tipos cliente" severity="secondary" outlined icon="pi pi-users" @click="router.push({ name: 'customer-types-settings' })" />
             <Button v-if="authStore.role === 'Admin'" label="Tarifas" severity="secondary" outlined icon="pi pi-cog" @click="router.push({ name: 'shipping-pricing-settings' })" />
             <Button label="Salir" severity="secondary" outlined icon="pi pi-sign-out" @click="signOut" />
           </div>
@@ -189,6 +190,7 @@ onMounted(loadOrders)
             </template>
           </Column>
           <Column field="customer" header="Cliente" />
+          <Column field="customerTypeName" header="Tipo cliente" />
           <Column field="status" header="Estado">
             <template #body="slotProps">
               <StatusPill :status="slotProps.data.status" />

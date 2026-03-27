@@ -51,7 +51,15 @@ const formattedQuoteTotal = computed(() => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(quote.value.totalShippingCost)
 })
 
-const canQuote = computed(() => Boolean(order.value?.destinationPostalCode))
+const inheritedCustomerTypeLabel = computed(() => {
+  if (!order.value) {
+    return 'Se completa al cargar la orden'
+  }
+
+  return `${order.value.customerTypeName} · ${order.value.customerTypeCode}`
+})
+
+const canQuote = computed(() => Boolean(order.value?.destinationPostalCode && order.value?.customerTypeId && form.carrierId))
 const canSubmit = computed(() => Boolean(form.orderId && form.customer && form.carrierId && form.recipientName && form.recipientPhone && form.destinationAddress && quote.value))
 
 async function loadCarriers() {
@@ -86,6 +94,8 @@ async function loadOrder() {
     form.orderId = loadedOrder.id
     form.customer = loadedOrder.customer
     form.recipientName = loadedOrder.customer
+    form.recipientPhone = ''
+    form.recipientEmail = ''
     form.destinationAddress = `${loadedOrder.destinationCity}, ${loadedOrder.destinationState} (${loadedOrder.destinationPostalCode})`
     await loadQuote()
   } catch (error) {
@@ -106,7 +116,7 @@ async function loadQuote() {
   errorMessage.value = ''
 
   try {
-    quote.value = await calculateShipmentQuote(authStore.token, order.value.destinationPostalCode, form.includeInsurance)
+    quote.value = await calculateShipmentQuote(authStore.token, order.value.customerTypeId, form.carrierId, order.value.destinationPostalCode, form.includeInsurance)
   } catch (error) {
     quote.value = null
     errorMessage.value = error instanceof Error ? error.message : 'No fue posible calcular la cotización del envío.'
@@ -201,6 +211,10 @@ onMounted(loadCarriers)
               <span>Código postal</span>
               <strong>{{ order.destinationPostalCode }}</strong>
             </div>
+            <div>
+              <span>Tipo de cliente</span>
+              <strong>{{ inheritedCustomerTypeLabel }}</strong>
+            </div>
           </div>
           <p v-else class="empty-state-copy">Todavía no hay una orden cargada para preparar el envío.</p>
         </template>
@@ -210,6 +224,14 @@ onMounted(loadCarriers)
         <template #title>Cotización logística</template>
         <template #content>
           <div class="settings-form-grid shipment-form-grid-tight">
+            <label>
+              <span>Tipo de cliente heredado</span>
+              <InputText :model-value="inheritedCustomerTypeLabel" disabled />
+            </label>
+            <label>
+              <span>Carrier</span>
+              <Dropdown v-model="form.carrierId" :options="carrierOptions" option-label="label" option-value="value" placeholder="Seleccionar carrier" :loading="isLoadingCarriers" @change="loadQuote" />
+            </label>
             <label class="settings-check-row shipment-check-row">
               <span>Incluir seguro</span>
               <input v-model="form.includeInsurance" type="checkbox" @change="loadQuote" />
@@ -225,6 +247,10 @@ onMounted(loadCarriers)
               <span>Regla aplicada</span>
               <strong>{{ quote.matchedRuleName || 'Tarifa por defecto' }}</strong>
             </div>
+              <div>
+                <span>Cliente / carrier</span>
+                <strong>{{ quote.customerTypeName }} · {{ quote.carrierName }}</strong>
+              </div>
             <div>
               <span>Base</span>
               <strong>{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(quote.baseShippingCost) }}</strong>
@@ -251,8 +277,8 @@ onMounted(loadCarriers)
               <InputText v-model="form.customer" placeholder="Nombre del cliente" />
             </label>
             <label class="shipment-form-field">
-              <span>Carrier</span>
-              <Dropdown v-model="form.carrierId" :options="carrierOptions" option-label="label" option-value="value" placeholder="Seleccionar carrier" :loading="isLoadingCarriers" />
+              <span>Tipo de cliente</span>
+              <InputText :model-value="inheritedCustomerTypeLabel" disabled />
             </label>
             <label class="shipment-form-field shipment-span-2">
               <span>Dirección de entrega</span>

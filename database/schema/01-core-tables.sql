@@ -10,9 +10,21 @@ CREATE TABLE Warehouses (
 );
 GO
 
+CREATE TABLE CustomerTypes (
+    CustomerTypeId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Code NVARCHAR(30) NOT NULL,
+    Name NVARCHAR(120) NOT NULL,
+    Description NVARCHAR(300) NOT NULL DEFAULT N'',
+    IsActive BIT NOT NULL DEFAULT 1,
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_CustomerTypes_Code UNIQUE (Code)
+);
+GO
+
 CREATE TABLE Orders (
     OrderId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     Customer NVARCHAR(160) NOT NULL,
+    CustomerTypeId UNIQUEIDENTIFIER NOT NULL,
     Status NVARCHAR(30) NOT NULL,
     Origin NVARCHAR(30) NOT NULL,
     Total DECIMAL(18,2) NOT NULL,
@@ -26,6 +38,7 @@ CREATE TABLE Orders (
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_Orders_Warehouses FOREIGN KEY (AssignedWarehouseId) REFERENCES Warehouses (WarehouseId),
+    CONSTRAINT FK_Orders_CustomerTypes FOREIGN KEY (CustomerTypeId) REFERENCES CustomerTypes (CustomerTypeId),
     CONSTRAINT CK_Orders_Status CHECK (Status IN ('Pending', 'Preparing', 'Shipped', 'Delivered', 'Cancelled')),
     CONSTRAINT CK_Orders_Origin CHECK (Origin IN ('Marketplace', 'Web', 'Manual'))
 );
@@ -80,6 +93,7 @@ CREATE TABLE Shipments (
     ShipmentId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     OrderId UNIQUEIDENTIFIER NOT NULL,
     CarrierId UNIQUEIDENTIFIER NULL,
+    CustomerTypeId UNIQUEIDENTIFIER NOT NULL,
     RecipientName NVARCHAR(160) NOT NULL,
     RecipientPhone NVARCHAR(40) NOT NULL,
     RecipientEmail NVARCHAR(160) NOT NULL DEFAULT N'',
@@ -96,6 +110,7 @@ CREATE TABLE Shipments (
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_Shipments_Orders FOREIGN KEY (OrderId) REFERENCES Orders (OrderId),
     CONSTRAINT FK_Shipments_Carriers FOREIGN KEY (CarrierId) REFERENCES Carriers (CarrierId),
+    CONSTRAINT FK_Shipments_CustomerTypes FOREIGN KEY (CustomerTypeId) REFERENCES CustomerTypes (CustomerTypeId),
     CONSTRAINT UQ_Shipments_Tracking UNIQUE (TrackingNumber)
 );
 GO
@@ -129,5 +144,29 @@ CREATE TABLE ExternalWebhookEvents (
     ReceivedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     ProcessedAt DATETIME2 NULL,
     CONSTRAINT UQ_ExternalWebhookEvents UNIQUE (Provider, ExternalOrderId)
+);
+GO
+
+CREATE TABLE ShipmentPricingSettings (
+    ShipmentPricingSettingsId INT NOT NULL PRIMARY KEY,
+    DefaultBaseCost DECIMAL(18,2) NOT NULL,
+    InsuranceFlatCost DECIMAL(18,2) NOT NULL,
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+CREATE TABLE ShipmentPricingRules (
+    ShipmentPricingRuleId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    ShipmentPricingSettingsId INT NOT NULL,
+    RuleName NVARCHAR(120) NOT NULL,
+    CustomerTypeId UNIQUEIDENTIFIER NOT NULL,
+    PostalCodePrefix NVARCHAR(12) NOT NULL,
+    CarrierId UNIQUEIDENTIFIER NOT NULL,
+    BaseCost DECIMAL(18,2) NOT NULL,
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT CK_ShipmentPricingRules_BaseCost CHECK (BaseCost >= 0),
+    CONSTRAINT FK_ShipmentPricingRules_ShipmentPricingSettings FOREIGN KEY (ShipmentPricingSettingsId) REFERENCES ShipmentPricingSettings (ShipmentPricingSettingsId),
+    CONSTRAINT FK_ShipmentPricingRules_CustomerTypes FOREIGN KEY (CustomerTypeId) REFERENCES CustomerTypes (CustomerTypeId),
+    CONSTRAINT FK_ShipmentPricingRules_Carriers FOREIGN KEY (CarrierId) REFERENCES Carriers (CarrierId)
 );
 GO

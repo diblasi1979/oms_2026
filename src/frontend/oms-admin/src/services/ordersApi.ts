@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { getMockOrderById, getMockOrders } from './mockData'
-import type { DashboardFilters, OrderDetail, OrderSummary } from '../types/oms'
+import { getMockCustomerTypeById, getMockCustomerTypes, getMockOrderById, getMockOrders } from './mockData'
+import type { CustomerTypeRecord, CustomerTypeUpsertPayload, DashboardFilters, OrderDetail, OrderSummary } from '../types/oms'
 
 const ORDERS_API_BASE_URL = import.meta.env.VITE_ORDERS_API_BASE_URL ?? 'https://localhost:7001'
 
@@ -51,5 +51,57 @@ export async function fetchOrderDetail(token: string, orderId: string): Promise<
     }
 
     return mockOrder
+  }
+}
+
+export async function fetchCustomerTypes(token: string, includeInactive = false): Promise<CustomerTypeRecord[]> {
+  try {
+    const response = await axios.get<CustomerTypeRecord[]>(`${ORDERS_API_BASE_URL}/api/customer-types`, {
+      params: { includeInactive },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return getMockCustomerTypes(includeInactive)
+  }
+}
+
+export async function createCustomerType(token: string, payload: CustomerTypeUpsertPayload): Promise<CustomerTypeRecord> {
+  try {
+    const response = await axios.post<CustomerTypeRecord>(`${ORDERS_API_BASE_URL}/api/customer-types`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return {
+      id: crypto.randomUUID(),
+      ...payload,
+    }
+  }
+}
+
+export async function updateCustomerType(token: string, customerTypeId: string, payload: CustomerTypeUpsertPayload): Promise<CustomerTypeRecord> {
+  try {
+    const response = await axios.put<CustomerTypeRecord>(`${ORDERS_API_BASE_URL}/api/customer-types/${customerTypeId}`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return {
+      ...(getMockCustomerTypeById(customerTypeId) ?? { id: customerTypeId }),
+      ...payload,
+    } as CustomerTypeRecord
   }
 }

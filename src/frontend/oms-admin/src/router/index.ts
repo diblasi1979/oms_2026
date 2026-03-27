@@ -6,6 +6,7 @@ import OrderDetailView from '../views/OrderDetailView.vue'
 import ShippingPricingSettingsView from '../views/ShippingPricingSettingsView.vue'
 import ShipmentCreateView from '../views/ShipmentCreateView.vue'
 import CarriersSettingsView from '../views/CarriersSettingsView.vue'
+import CustomerTypesSettingsView from '../views/CustomerTypesSettingsView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
@@ -47,6 +48,12 @@ const router = createRouter({
       path: '/settings/carriers',
       name: 'carriers-settings',
       component: CarriersSettingsView,
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: '/settings/customer-types',
+      name: 'customer-types-settings',
+      component: CustomerTypesSettingsView,
       meta: { requiresAdmin: true },
     },
   ],
