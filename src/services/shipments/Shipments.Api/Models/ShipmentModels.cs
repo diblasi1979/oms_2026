@@ -5,6 +5,9 @@ public sealed class CreateShipmentRequest
     public Guid OrderId { get; set; }
     public string Customer { get; set; } = string.Empty;
     public Guid CarrierId { get; set; }
+    public string RecipientName { get; set; } = string.Empty;
+    public string RecipientPhone { get; set; } = string.Empty;
+    public string RecipientEmail { get; set; } = string.Empty;
     public string DestinationAddress { get; set; } = string.Empty;
     public decimal WeightKg { get; set; }
     public decimal HeightCm { get; set; }
@@ -19,6 +22,9 @@ public sealed class ShipmentResponse
     public Guid OrderId { get; init; }
     public Guid? CarrierId { get; init; }
     public string Customer { get; init; } = string.Empty;
+    public string RecipientName { get; init; } = string.Empty;
+    public string RecipientPhone { get; init; } = string.Empty;
+    public string RecipientEmail { get; init; } = string.Empty;
     public string Carrier { get; init; } = string.Empty;
     public string TrackingNumber { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
@@ -135,6 +141,9 @@ internal sealed class ShipmentRecord
     public Guid Id { get; init; }
     public Guid OrderId { get; init; }
     public string Customer { get; init; } = string.Empty;
+    public string RecipientName { get; init; } = string.Empty;
+    public string RecipientPhone { get; init; } = string.Empty;
+    public string RecipientEmail { get; init; } = string.Empty;
     public string Carrier { get; init; } = string.Empty;
     public string TrackingNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;

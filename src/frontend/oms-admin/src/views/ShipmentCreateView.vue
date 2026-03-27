@@ -32,6 +32,9 @@ const form = reactive<CreateShipmentPayload>({
   orderId: '',
   customer: '',
   carrierId: '',
+  recipientName: '',
+  recipientPhone: '',
+  recipientEmail: '',
   destinationAddress: '',
   weightKg: 1,
   heightCm: 10,
@@ -49,7 +52,7 @@ const formattedQuoteTotal = computed(() => {
 })
 
 const canQuote = computed(() => Boolean(order.value?.destinationPostalCode))
-const canSubmit = computed(() => Boolean(form.orderId && form.customer && form.carrierId && form.destinationAddress && quote.value))
+const canSubmit = computed(() => Boolean(form.orderId && form.customer && form.carrierId && form.recipientName && form.recipientPhone && form.destinationAddress && quote.value))
 
 async function loadCarriers() {
   isLoadingCarriers.value = true
@@ -82,6 +85,7 @@ async function loadOrder() {
     order.value = loadedOrder
     form.orderId = loadedOrder.id
     form.customer = loadedOrder.customer
+    form.recipientName = loadedOrder.customer
     form.destinationAddress = `${loadedOrder.destinationCity}, ${loadedOrder.destinationState} (${loadedOrder.destinationPostalCode})`
     await loadQuote()
   } catch (error) {
@@ -255,20 +259,16 @@ onMounted(loadCarriers)
               <InputText v-model="form.destinationAddress" placeholder="Calle, altura, localidad y referencias" />
             </label>
             <label class="shipment-form-field">
-              <span>Peso kg</span>
-              <input v-model.number="form.weightKg" class="p-inputtext" type="number" min="0.1" step="0.1" />
+              <span>Recibe</span>
+              <InputText v-model="form.recipientName" placeholder="Nombre y apellido" />
             </label>
             <label class="shipment-form-field">
-              <span>Alto cm</span>
-              <input v-model.number="form.heightCm" class="p-inputtext" type="number" min="1" step="1" />
+              <span>Teléfono</span>
+              <InputText v-model="form.recipientPhone" placeholder="+54 11 5555 5555" />
             </label>
-            <label class="shipment-form-field">
-              <span>Ancho cm</span>
-              <input v-model.number="form.widthCm" class="p-inputtext" type="number" min="1" step="1" />
-            </label>
-            <label class="shipment-form-field">
-              <span>Largo cm</span>
-              <input v-model.number="form.lengthCm" class="p-inputtext" type="number" min="1" step="1" />
+            <label class="shipment-form-field shipment-span-2">
+              <span>Email</span>
+              <InputText v-model="form.recipientEmail" placeholder="destinatario@cliente.com" />
             </label>
             <div v-if="selectedCarrier" class="quote-card shipment-carrier-card shipment-span-2">
               <div>
@@ -292,6 +292,30 @@ onMounted(loadCarriers)
         </template>
       </Card>
 
+      <Card class="panel-card shipment-volume-card">
+        <template #title>Volumetría</template>
+        <template #content>
+          <div class="shipment-volume-grid">
+            <label class="shipment-form-field">
+              <span>Peso kg</span>
+              <input v-model.number="form.weightKg" class="p-inputtext" type="number" min="0.1" step="0.1" />
+            </label>
+            <label class="shipment-form-field">
+              <span>Alto cm</span>
+              <input v-model.number="form.heightCm" class="p-inputtext" type="number" min="1" step="1" />
+            </label>
+            <label class="shipment-form-field">
+              <span>Ancho cm</span>
+              <input v-model.number="form.widthCm" class="p-inputtext" type="number" min="1" step="1" />
+            </label>
+            <label class="shipment-form-field">
+              <span>Largo cm</span>
+              <input v-model.number="form.lengthCm" class="p-inputtext" type="number" min="1" step="1" />
+            </label>
+          </div>
+        </template>
+      </Card>
+
       <Card v-if="createdShipment" class="panel-card detail-span-2">
         <template #title>Envío generado</template>
         <template #content>
@@ -311,6 +335,14 @@ onMounted(loadCarriers)
             <div>
               <span>Destino</span>
               <strong>{{ createdShipment.destinationAddress }}</strong>
+            </div>
+            <div>
+              <span>Recibe</span>
+              <strong>{{ createdShipment.recipientName }}</strong>
+            </div>
+            <div>
+              <span>Contacto</span>
+              <strong>{{ createdShipment.recipientPhone }}</strong>
             </div>
           </div>
         </template>

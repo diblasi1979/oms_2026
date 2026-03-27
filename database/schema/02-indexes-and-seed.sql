@@ -87,9 +87,9 @@ VALUES
 GO
 
 IF NOT EXISTS (SELECT 1 FROM Shipments WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')
-INSERT INTO Shipments (ShipmentId, OrderId, CarrierId, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, ShippingCost, DestinationAddress, CreatedAt, UpdatedAt)
+INSERT INTO Shipments (ShipmentId, OrderId, CarrierId, RecipientName, RecipientPhone, RecipientEmail, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, ShippingCost, DestinationAddress, CreatedAt, UpdatedAt)
 VALUES
-('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', '6C1A2F12-0C19-4F23-9FB2-000000000001', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 18.50, 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
+('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', '6C1A2F12-0C19-4F23-9FB2-000000000001', 'Marcela Gomez', '+54 261 555 0101', 'marcela.gomez@example.com', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 18.50, 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
 GO
 
 IF NOT EXISTS (SELECT 1 FROM ShipmentEvents WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')

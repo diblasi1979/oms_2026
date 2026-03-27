@@ -62,6 +62,9 @@ export interface CreateShipmentPayload {
   orderId: string
   customer: string
   carrierId: string
+  recipientName: string
+  recipientPhone: string
+  recipientEmail: string
   destinationAddress: string
   weightKg: number
   heightCm: number
@@ -81,6 +84,9 @@ export interface ShipmentRecord {
   orderId: string
   carrierId?: string | null
   customer: string
+  recipientName: string
+  recipientPhone: string
+  recipientEmail: string
   carrier: string
   trackingNumber: string
   status: string

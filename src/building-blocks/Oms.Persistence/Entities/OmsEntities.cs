@@ -74,6 +74,9 @@ public sealed class ShipmentEntity
     public Guid ShipmentId { get; set; }
     public Guid OrderId { get; set; }
     public Guid? CarrierId { get; set; }
+    public string RecipientName { get; set; } = string.Empty;
+    public string RecipientPhone { get; set; } = string.Empty;
+    public string RecipientEmail { get; set; } = string.Empty;
     public string Carrier { get; set; } = string.Empty;
     public string TrackingNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;

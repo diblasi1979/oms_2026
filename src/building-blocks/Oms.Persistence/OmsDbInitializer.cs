@@ -88,6 +88,9 @@ public static class OmsDbInitializer
                 ShipmentId = shipmentId,
                 OrderId = orderId,
                 CarrierId = Guid.Parse("6c1a2f12-0c19-4f23-9fb2-000000000001"),
+                RecipientName = "Marcela Gomez",
+                RecipientPhone = "+54 261 555 0101",
+                RecipientEmail = "marcela.gomez@example.com",
                 Carrier = "Andreani",
                 TrackingNumber = tracking,
                 Status = "InTransit",
@@ -277,6 +280,21 @@ BEGIN
         FOREIGN KEY ([CarrierId]) REFERENCES [dbo].[Carriers]([CarrierId]);
 
     CREATE INDEX [IX_Shipments_CarrierId] ON [dbo].[Shipments]([CarrierId]);
+END
+
+IF COL_LENGTH(N'[dbo].[Shipments]', N'RecipientName') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [RecipientName] NVARCHAR(160) NOT NULL CONSTRAINT [DF_Shipments_RecipientName] DEFAULT N''Destinatario pendiente'';
+END
+
+IF COL_LENGTH(N'[dbo].[Shipments]', N'RecipientPhone') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [RecipientPhone] NVARCHAR(40) NOT NULL CONSTRAINT [DF_Shipments_RecipientPhone] DEFAULT N''No informado'';
+END
+
+IF COL_LENGTH(N'[dbo].[Shipments]', N'RecipientEmail') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [RecipientEmail] NVARCHAR(160) NOT NULL CONSTRAINT [DF_Shipments_RecipientEmail] DEFAULT N'';
 END
 """;
 

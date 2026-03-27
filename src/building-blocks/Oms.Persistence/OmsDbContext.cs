@@ -108,6 +108,9 @@ public sealed class OmsDbContext : DbContext
         shipments.ToTable("Shipments");
         shipments.HasKey(entity => entity.ShipmentId);
         shipments.Property(entity => entity.CarrierId);
+        shipments.Property(entity => entity.RecipientName).HasMaxLength(160).IsRequired();
+        shipments.Property(entity => entity.RecipientPhone).HasMaxLength(40).IsRequired();
+        shipments.Property(entity => entity.RecipientEmail).HasMaxLength(160);
         shipments.Property(entity => entity.Carrier).HasMaxLength(100).IsRequired();
         shipments.Property(entity => entity.TrackingNumber).HasMaxLength(80).IsRequired();
         shipments.Property(entity => entity.Status).HasMaxLength(40).IsRequired();

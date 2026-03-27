@@ -41,9 +41,9 @@ public sealed class ShipmentsService
 
     public async Task<ShipmentResponse> CreateAsync(CreateShipmentRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.OrderId == Guid.Empty || request.CarrierId == Guid.Empty || string.IsNullOrWhiteSpace(request.Customer))
+        if (request.OrderId == Guid.Empty || request.CarrierId == Guid.Empty || string.IsNullOrWhiteSpace(request.Customer) || string.IsNullOrWhiteSpace(request.RecipientName) || string.IsNullOrWhiteSpace(request.RecipientPhone))
         {
-            throw new InvalidOperationException("El envío requiere orderId, cliente y un carrier válido.");
+            throw new InvalidOperationException("El envío requiere orderId, cliente, destinatario y un carrier válido.");
         }
 
         var order = await _dbContext.Orders
@@ -72,6 +72,9 @@ public sealed class ShipmentsService
             ShipmentId = Guid.NewGuid(),
             OrderId = request.OrderId,
             CarrierId = carrier.CarrierId,
+            RecipientName = request.RecipientName.Trim(),
+            RecipientPhone = request.RecipientPhone.Trim(),
+            RecipientEmail = request.RecipientEmail.Trim(),
             Carrier = carrier.Name,
             TrackingNumber = $"TRK-{DateTimeOffset.UtcNow:yyyyMMdd}-{Random.Shared.Next(10000, 99999)}",
             Status = "LabelCreated",
@@ -189,6 +192,9 @@ public sealed class ShipmentsService
         OrderId = shipment.OrderId,
         CarrierId = shipment.CarrierId,
         Customer = shipment.Order.Customer,
+        RecipientName = shipment.RecipientName,
+        RecipientPhone = shipment.RecipientPhone,
+        RecipientEmail = shipment.RecipientEmail,
         Carrier = shipment.Carrier,
         TrackingNumber = shipment.TrackingNumber,
         Status = shipment.Status,
