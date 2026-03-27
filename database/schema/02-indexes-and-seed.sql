@@ -18,6 +18,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Shipments_OrderId' AND
 CREATE INDEX IX_Shipments_OrderId ON Shipments (OrderId);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Shipments_CarrierId' AND object_id = OBJECT_ID('Shipments'))
+CREATE INDEX IX_Shipments_CarrierId ON Shipments (CarrierId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Carriers_IsActive_Name' AND object_id = OBJECT_ID('Carriers'))
+CREATE INDEX IX_Carriers_IsActive_Name ON Carriers (IsActive, Name);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ShipmentEvents_ShipmentId_EventTimestamp' AND object_id = OBJECT_ID('ShipmentEvents'))
 CREATE INDEX IX_ShipmentEvents_ShipmentId_EventTimestamp ON ShipmentEvents (ShipmentId, EventTimestamp DESC);
 GO
@@ -70,10 +78,18 @@ VALUES
 (NEWID(), 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', 'OrderStatusChanged', 'Estado actualizado a Preparing.', DATEADD(HOUR, -6, DATEADD(MINUTE, 20, SYSUTCDATETIME())));
 GO
 
-IF NOT EXISTS (SELECT 1 FROM Shipments WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')
-INSERT INTO Shipments (ShipmentId, OrderId, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, ShippingCost, DestinationAddress, CreatedAt, UpdatedAt)
+IF NOT EXISTS (SELECT 1 FROM Carriers)
+INSERT INTO Carriers (CarrierId, Code, Name, ServiceLevel, TrackingUrlTemplate, SupportEmail, SupportPhone, InsuranceSupported, IsActive, Notes)
 VALUES
-('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 18.50, 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
+('6C1A2F12-0C19-4F23-9FB2-000000000001', 'ANDREANI', 'Andreani', 'Standard', 'https://www.andreani.com/#!/informacionEnvio/{trackingNumber}', 'soporte@andreani.com', '+54 800 122 1111', 1, 1, 'Carrier principal para operación nacional.'),
+('6C1A2F12-0C19-4F23-9FB2-000000000002', 'OCA', 'OCA', 'Express', 'https://www.oca.com.ar/Busquedas/Envios?numero={trackingNumber}', 'clientes@oca.com.ar', '+54 800 999 7700', 1, 1, 'Carrier alternativo para zonas urbanas.'),
+('6C1A2F12-0C19-4F23-9FB2-000000000003', 'CORREOAR', 'Correo Argentino', 'Economy', 'https://www.correoargentino.com.ar/formularios/e-commerce?id={trackingNumber}', 'empresas@correoargentino.com.ar', '+54 11 4891 9191', 0, 1, 'Cobertura nacional con costo moderado.');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM Shipments WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')
+INSERT INTO Shipments (ShipmentId, OrderId, CarrierId, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, ShippingCost, DestinationAddress, CreatedAt, UpdatedAt)
+VALUES
+('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', '6C1A2F12-0C19-4F23-9FB2-000000000001', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 18.50, 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
 GO
 
 IF NOT EXISTS (SELECT 1 FROM ShipmentEvents WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')

@@ -366,6 +366,147 @@ h2 {
   gap: 16px;
 }
 
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.settings-form-grid label {
+  display: grid;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.settings-check-row {
+  align-content: end;
+}
+
+.settings-check-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 18px;
+}
+
+.quote-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.quote-card div {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.quote-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.rules-table-wrap {
+  overflow-x: auto;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rules-table th,
+.rules-table td {
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: left;
+}
+
+.rules-table th {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.shipment-create-grid {
+  align-items: start;
+}
+
+.shipment-order-search-row {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+}
+
+.shipment-grow-field {
+  flex: 1 1 auto;
+}
+
+.shipment-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.shipment-form-grid-tight {
+  margin-bottom: 14px;
+}
+
+.shipment-form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.shipment-form-field span,
+.empty-state-copy {
+  color: var(--text-secondary);
+}
+
+.shipment-span-2 {
+  grid-column: span 2;
+}
+
+.shipment-check-row {
+  align-items: center;
+}
+
+.shipment-quote-actions {
+  margin-bottom: 14px;
+}
+
+.shipment-order-card,
+.shipment-success-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shipment-carrier-card {
+  margin-top: 4px;
+}
+
+.carriers-notes-area {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.carriers-table .table-inline-note {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.p-message.p-message-success {
+  border: 1px solid rgba(240, 163, 90, 0.24);
+  background: rgba(240, 163, 90, 0.08);
+  color: #ffe0c0;
+}
+
 .summary-grid div,
 .timeline-card {
   padding: 14px 16px;
@@ -643,7 +784,12 @@ h2 {
 @media (max-width: 1024px) {
   .stats-grid,
   .detail-grid,
-  .summary-grid {
+  .summary-grid,
+  .settings-form-grid,
+  .quote-card,
+  .shipment-form-grid,
+  .shipment-order-card,
+  .shipment-success-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -652,6 +798,10 @@ h2 {
   }
 
   .detail-span-2 {
+    grid-column: auto;
+  }
+
+  .shipment-span-2 {
     grid-column: auto;
   }
 }
@@ -674,7 +824,12 @@ h2 {
 
   .stats-grid,
   .detail-grid,
-  .summary-grid {
+  .summary-grid,
+  .settings-form-grid,
+  .quote-card,
+  .shipment-form-grid,
+  .shipment-order-card,
+  .shipment-success-grid {
     grid-template-columns: 1fr;
   }
 
@@ -689,6 +844,11 @@ h2 {
 
   .hero-panel-top,
   .section-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .shipment-order-search-row {
     flex-direction: column;
     align-items: stretch;
   }

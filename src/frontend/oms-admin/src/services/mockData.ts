@@ -1,4 +1,43 @@
-import type { AuthSession, OrderDetail, OrderSummary, ShippingLabel } from '../types/oms'
+import type { AuthSession, CarrierRecord, CreateShipmentPayload, OrderDetail, OrderSummary, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+
+const mockCarriers: CarrierRecord[] = [
+  {
+    id: '6c1a2f12-0c19-4f23-9fb2-000000000001',
+    code: 'ANDREANI',
+    name: 'Andreani',
+    serviceLevel: 'Standard',
+    trackingUrlTemplate: 'https://www.andreani.com/#!/informacionEnvio/{trackingNumber}',
+    supportEmail: 'soporte@andreani.com',
+    supportPhone: '+54 800 122 1111',
+    insuranceSupported: true,
+    isActive: true,
+    notes: 'Carrier principal para operación nacional.',
+  },
+  {
+    id: '6c1a2f12-0c19-4f23-9fb2-000000000002',
+    code: 'OCA',
+    name: 'OCA',
+    serviceLevel: 'Express',
+    trackingUrlTemplate: 'https://www.oca.com.ar/Busquedas/Envios?numero={trackingNumber}',
+    supportEmail: 'clientes@oca.com.ar',
+    supportPhone: '+54 800 999 7700',
+    insuranceSupported: true,
+    isActive: true,
+    notes: 'Carrier alternativo para zonas urbanas.',
+  },
+  {
+    id: '6c1a2f12-0c19-4f23-9fb2-000000000003',
+    code: 'CORREOAR',
+    name: 'Correo Argentino',
+    serviceLevel: 'Economy',
+    trackingUrlTemplate: 'https://www.correoargentino.com.ar/formularios/e-commerce?id={trackingNumber}',
+    supportEmail: 'empresas@correoargentino.com.ar',
+    supportPhone: '+54 11 4891 9191',
+    insuranceSupported: false,
+    isActive: true,
+    notes: 'Cobertura nacional con costo moderado.',
+  },
+]
 
 const mockOrders: OrderDetail[] = [
   {
@@ -98,5 +137,78 @@ export function getMockLabel(orderId: string): ShippingLabel {
       `Tracking: ${order?.shipmentTrackingNumber ?? 'PENDING'}`,
       `Destination: ${order?.destinationCity ?? 'N/A'} ${order?.destinationPostalCode ?? ''}`,
     ].join('\n'),
+  }
+}
+
+export function getMockShipmentPricingSettings(): ShipmentPricingSettings {
+  return {
+    defaultBaseCost: 14.5,
+    insuranceFlatCost: 3.25,
+    rules: [
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000001', ruleName: 'AMBA', postalCodePrefix: '1', baseCost: 9.5 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000002', ruleName: 'Centro', postalCodePrefix: '5', baseCost: 15.75 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000003', ruleName: 'Litoral', postalCodePrefix: '2', baseCost: 13.2 },
+    ],
+  }
+}
+
+export function getMockCarriers(includeInactive = false): CarrierRecord[] {
+  return includeInactive ? [...mockCarriers] : mockCarriers.filter((carrier) => carrier.isActive)
+}
+
+export function getMockCarrierById(carrierId: string): CarrierRecord | undefined {
+  return mockCarriers.find((carrier) => carrier.id === carrierId)
+}
+
+export function getMockShipmentPricingQuote(destinationPostalCode: string, includeInsurance = true): ShipmentPricingQuote {
+  const settings = getMockShipmentPricingSettings()
+  const normalized = destinationPostalCode.replace(/[^a-z0-9]/gi, '').toUpperCase()
+  const match = [...settings.rules]
+    .sort((left, right) => right.postalCodePrefix.length - left.postalCodePrefix.length)
+    .find((rule) => normalized.startsWith(rule.postalCodePrefix.toUpperCase()))
+
+  const baseShippingCost = match?.baseCost ?? settings.defaultBaseCost
+  const insuranceCost = includeInsurance ? settings.insuranceFlatCost : 0
+
+  return {
+    destinationPostalCode: normalized,
+    matchedRuleName: match?.ruleName ?? null,
+    matchedPostalCodePrefix: match?.postalCodePrefix ?? null,
+    usedDefaultRate: !match,
+    baseShippingCost,
+    insuranceCost,
+    totalShippingCost: baseShippingCost + insuranceCost,
+  }
+}
+
+export function getMockCreatedShipment(payload: CreateShipmentPayload): ShipmentRecord {
+  const order = getMockOrderById(payload.orderId)
+  const carrier = getMockCarrierById(payload.carrierId)
+  const quote = getMockShipmentPricingQuote(order?.destinationPostalCode ?? '1001', payload.includeInsurance)
+
+  return {
+    id: `mock-shipment-${payload.orderId}`,
+    orderId: payload.orderId,
+    carrierId: payload.carrierId,
+    customer: payload.customer,
+    carrier: carrier?.name ?? 'Carrier no definido',
+    trackingNumber: `TRK-MOCK-${payload.orderId.slice(0, 8).toUpperCase()}`,
+    status: 'LabelCreated',
+    weightKg: payload.weightKg,
+    heightCm: payload.heightCm,
+    widthCm: payload.widthCm,
+    lengthCm: payload.lengthCm,
+    baseShippingCost: quote.baseShippingCost,
+    insuranceCost: quote.insuranceCost,
+    shippingCost: quote.totalShippingCost,
+    destinationPostalCode: order?.destinationPostalCode ?? '1001',
+    destinationAddress: payload.destinationAddress,
+    events: [
+      {
+        timestamp: new Date().toISOString(),
+        status: 'LabelCreated',
+        notes: 'Envío simulado creado desde el dashboard.',
+      },
+    ],
   }
 }

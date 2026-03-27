@@ -3,6 +3,9 @@ import type { RouteLocationNormalized } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import OrdersDashboardView from '../views/OrdersDashboardView.vue'
 import OrderDetailView from '../views/OrderDetailView.vue'
+import ShippingPricingSettingsView from '../views/ShippingPricingSettingsView.vue'
+import ShipmentCreateView from '../views/ShipmentCreateView.vue'
+import CarriersSettingsView from '../views/CarriersSettingsView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
@@ -29,6 +32,23 @@ const router = createRouter({
       component: OrderDetailView,
       props: true,
     },
+    {
+      path: '/shipments/new',
+      name: 'shipment-create',
+      component: ShipmentCreateView,
+    },
+    {
+      path: '/settings/shipping-pricing',
+      name: 'shipping-pricing-settings',
+      component: ShippingPricingSettingsView,
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: '/settings/carriers',
+      name: 'carriers-settings',
+      component: CarriersSettingsView,
+      meta: { requiresAdmin: true },
+    },
   ],
 })
 
@@ -37,6 +57,10 @@ router.beforeEach((to: RouteLocationNormalized) => {
 
   if (!to.meta.public && !authStore.isAuthenticated) {
     return { name: 'login' }
+  }
+
+  if (to.meta.requiresAdmin && authStore.role !== 'Admin') {
+    return { name: 'orders' }
   }
 
   if (to.name === 'login' && authStore.isAuthenticated) {

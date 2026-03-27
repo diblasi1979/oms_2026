@@ -15,6 +15,9 @@ public sealed class OmsDbContext : DbContext
     public DbSet<OrderLogEntity> OrderLogs => Set<OrderLogEntity>();
     public DbSet<InventoryEntity> Inventory => Set<InventoryEntity>();
     public DbSet<ShipmentEntity> Shipments => Set<ShipmentEntity>();
+    public DbSet<CarrierEntity> Carriers => Set<CarrierEntity>();
+    public DbSet<ShipmentPricingSettingsEntity> ShipmentPricingSettings => Set<ShipmentPricingSettingsEntity>();
+    public DbSet<ShipmentPricingRuleEntity> ShipmentPricingRules => Set<ShipmentPricingRuleEntity>();
     public DbSet<ShipmentEventEntity> ShipmentEvents => Set<ShipmentEventEntity>();
     public DbSet<ExternalWebhookEventEntity> ExternalWebhookEvents => Set<ExternalWebhookEventEntity>();
 
@@ -104,6 +107,7 @@ public sealed class OmsDbContext : DbContext
         var shipments = modelBuilder.Entity<ShipmentEntity>();
         shipments.ToTable("Shipments");
         shipments.HasKey(entity => entity.ShipmentId);
+        shipments.Property(entity => entity.CarrierId);
         shipments.Property(entity => entity.Carrier).HasMaxLength(100).IsRequired();
         shipments.Property(entity => entity.TrackingNumber).HasMaxLength(80).IsRequired();
         shipments.Property(entity => entity.Status).HasMaxLength(40).IsRequired();
@@ -120,6 +124,48 @@ public sealed class OmsDbContext : DbContext
         shipments.HasOne(entity => entity.Order)
             .WithMany(entity => entity.Shipments)
             .HasForeignKey(entity => entity.OrderId);
+        shipments.HasOne(entity => entity.CarrierSettings)
+            .WithMany(entity => entity.Shipments)
+            .HasForeignKey(entity => entity.CarrierId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        var carriers = modelBuilder.Entity<CarrierEntity>();
+        carriers.ToTable("Carriers");
+        carriers.HasKey(entity => entity.CarrierId);
+        carriers.Property(entity => entity.Code).HasMaxLength(30).IsRequired();
+        carriers.Property(entity => entity.Name).HasMaxLength(120).IsRequired();
+        carriers.Property(entity => entity.ServiceLevel).HasMaxLength(80).IsRequired();
+        carriers.Property(entity => entity.TrackingUrlTemplate).HasMaxLength(250).IsRequired();
+        carriers.Property(entity => entity.SupportEmail).HasMaxLength(160);
+        carriers.Property(entity => entity.SupportPhone).HasMaxLength(40);
+        carriers.Property(entity => entity.Notes).HasMaxLength(500);
+        carriers.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");
+        carriers.HasIndex(entity => entity.Code).IsUnique().HasDatabaseName("UQ_Carriers_Code");
+        carriers.HasIndex(entity => new { entity.IsActive, entity.Name }).HasDatabaseName("IX_Carriers_IsActive_Name");
+
+        var shipmentPricingSettings = modelBuilder.Entity<ShipmentPricingSettingsEntity>();
+        shipmentPricingSettings.ToTable("ShipmentPricingSettings");
+        shipmentPricingSettings.HasKey(entity => entity.ShipmentPricingSettingsId);
+        shipmentPricingSettings.Property(entity => entity.DefaultBaseCost).HasColumnType("decimal(18,2)");
+        shipmentPricingSettings.Property(entity => entity.InsuranceFlatCost).HasColumnType("decimal(18,2)");
+        shipmentPricingSettings.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");
+
+        var shipmentPricingRules = modelBuilder.Entity<ShipmentPricingRuleEntity>();
+        shipmentPricingRules.ToTable("ShipmentPricingRules", table =>
+        {
+            table.HasCheckConstraint("CK_ShipmentPricingRules_BaseCost", "BaseCost >= 0");
+        });
+        shipmentPricingRules.HasKey(entity => entity.ShipmentPricingRuleId);
+        shipmentPricingRules.Property(entity => entity.RuleName).HasMaxLength(120).IsRequired();
+        shipmentPricingRules.Property(entity => entity.PostalCodePrefix).HasMaxLength(12).IsRequired();
+        shipmentPricingRules.Property(entity => entity.BaseCost).HasColumnType("decimal(18,2)");
+        shipmentPricingRules.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");
+        shipmentPricingRules.HasIndex(entity => new { entity.ShipmentPricingSettingsId, entity.PostalCodePrefix })
+            .IsUnique()
+            .HasDatabaseName("UQ_ShipmentPricingRules_SettingsPrefix");
+        shipmentPricingRules.HasOne(entity => entity.Settings)
+            .WithMany(entity => entity.Rules)
+            .HasForeignKey(entity => entity.ShipmentPricingSettingsId);
 
         var shipmentEvents = modelBuilder.Entity<ShipmentEventEntity>();
         shipmentEvents.ToTable("ShipmentEvents");

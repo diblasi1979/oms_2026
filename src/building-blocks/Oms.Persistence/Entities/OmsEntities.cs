@@ -73,6 +73,7 @@ public sealed class ShipmentEntity
 {
     public Guid ShipmentId { get; set; }
     public Guid OrderId { get; set; }
+    public Guid? CarrierId { get; set; }
     public string Carrier { get; set; } = string.Empty;
     public string TrackingNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
@@ -85,7 +86,44 @@ public sealed class ShipmentEntity
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public OrderEntity Order { get; set; } = null!;
+    public CarrierEntity? CarrierSettings { get; set; }
     public ICollection<ShipmentEventEntity> Events { get; set; } = new List<ShipmentEventEntity>();
+}
+
+public sealed class CarrierEntity
+{
+    public Guid CarrierId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string ServiceLevel { get; set; } = string.Empty;
+    public string TrackingUrlTemplate { get; set; } = string.Empty;
+    public string SupportEmail { get; set; } = string.Empty;
+    public string SupportPhone { get; set; } = string.Empty;
+    public bool InsuranceSupported { get; set; }
+    public bool IsActive { get; set; }
+    public string Notes { get; set; } = string.Empty;
+    public DateTime UpdatedAt { get; set; }
+    public ICollection<ShipmentEntity> Shipments { get; set; } = new List<ShipmentEntity>();
+}
+
+public sealed class ShipmentPricingSettingsEntity
+{
+    public int ShipmentPricingSettingsId { get; set; }
+    public decimal DefaultBaseCost { get; set; }
+    public decimal InsuranceFlatCost { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public ICollection<ShipmentPricingRuleEntity> Rules { get; set; } = new List<ShipmentPricingRuleEntity>();
+}
+
+public sealed class ShipmentPricingRuleEntity
+{
+    public Guid ShipmentPricingRuleId { get; set; }
+    public int ShipmentPricingSettingsId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string PostalCodePrefix { get; set; } = string.Empty;
+    public decimal BaseCost { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public ShipmentPricingSettingsEntity Settings { get; set; } = null!;
 }
 
 public sealed class ShipmentEventEntity

@@ -18,6 +18,9 @@ public static class OmsDbInitializer
                 exception);
         }
 
+        await EnsureShipmentPricingSchemaAsync(dbContext, cancellationToken);
+        await EnsureCarrierSchemaAsync(dbContext, cancellationToken);
+
         if (!await dbContext.Warehouses.AnyAsync(cancellationToken))
         {
             var warehouses = new[]
@@ -84,6 +87,7 @@ public static class OmsDbInitializer
             {
                 ShipmentId = shipmentId,
                 OrderId = orderId,
+                CarrierId = Guid.Parse("6c1a2f12-0c19-4f23-9fb2-000000000001"),
                 Carrier = "Andreani",
                 TrackingNumber = tracking,
                 Status = "InTransit",
@@ -104,6 +108,179 @@ public static class OmsDbInitializer
             await dbContext.Shipments.AddAsync(shipment, cancellationToken);
         }
 
+        if (!await dbContext.Carriers.AnyAsync(cancellationToken))
+        {
+            var carriers = new[]
+            {
+                new CarrierEntity
+                {
+                    CarrierId = Guid.Parse("6c1a2f12-0c19-4f23-9fb2-000000000001"),
+                    Code = "ANDREANI",
+                    Name = "Andreani",
+                    ServiceLevel = "Standard",
+                    TrackingUrlTemplate = "https://www.andreani.com/#!/informacionEnvio/{trackingNumber}",
+                    SupportEmail = "soporte@andreani.com",
+                    SupportPhone = "+54 800 122 1111",
+                    InsuranceSupported = true,
+                    IsActive = true,
+                    Notes = "Carrier principal para envíos nacionales.",
+                    UpdatedAt = DateTime.UtcNow
+                },
+                new CarrierEntity
+                {
+                    CarrierId = Guid.Parse("6c1a2f12-0c19-4f23-9fb2-000000000002"),
+                    Code = "OCA",
+                    Name = "OCA",
+                    ServiceLevel = "Express",
+                    TrackingUrlTemplate = "https://www.oca.com.ar/Busquedas/Envios?numero={trackingNumber}",
+                    SupportEmail = "clientes@oca.com.ar",
+                    SupportPhone = "+54 800 999 7700",
+                    InsuranceSupported = true,
+                    IsActive = true,
+                    Notes = "Opcional para entregas urbanas y express.",
+                    UpdatedAt = DateTime.UtcNow
+                },
+                new CarrierEntity
+                {
+                    CarrierId = Guid.Parse("6c1a2f12-0c19-4f23-9fb2-000000000003"),
+                    Code = "CORREOAR",
+                    Name = "Correo Argentino",
+                    ServiceLevel = "Economy",
+                    TrackingUrlTemplate = "https://www.correoargentino.com.ar/formularios/e-commerce?id={trackingNumber}",
+                    SupportEmail = "empresas@correoargentino.com.ar",
+                    SupportPhone = "+54 11 4891 9191",
+                    InsuranceSupported = false,
+                    IsActive = true,
+                    Notes = "Cobertura nacional con costo contenido.",
+                    UpdatedAt = DateTime.UtcNow
+                }
+            };
+
+            await dbContext.Carriers.AddRangeAsync(carriers, cancellationToken);
+        }
+
+        if (!await dbContext.ShipmentPricingSettings.AnyAsync(cancellationToken))
+        {
+            var settings = new ShipmentPricingSettingsEntity
+            {
+                ShipmentPricingSettingsId = 1,
+                DefaultBaseCost = 14.50m,
+                InsuranceFlatCost = 3.25m,
+                UpdatedAt = DateTime.UtcNow,
+                Rules =
+                {
+                    new ShipmentPricingRuleEntity
+                    {
+                        ShipmentPricingRuleId = Guid.NewGuid(),
+                        RuleName = "AMBA",
+                        PostalCodePrefix = "1",
+                        BaseCost = 9.50m,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new ShipmentPricingRuleEntity
+                    {
+                        ShipmentPricingRuleId = Guid.NewGuid(),
+                        RuleName = "Centro",
+                        PostalCodePrefix = "5",
+                        BaseCost = 15.75m,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new ShipmentPricingRuleEntity
+                    {
+                        ShipmentPricingRuleId = Guid.NewGuid(),
+                        RuleName = "Litoral",
+                        PostalCodePrefix = "2",
+                        BaseCost = 13.20m,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                }
+            };
+
+            await dbContext.ShipmentPricingSettings.AddAsync(settings, cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureShipmentPricingSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        const string createSettingsTableSql = """
+IF OBJECT_ID(N'[dbo].[ShipmentPricingSettings]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ShipmentPricingSettings]
+    (
+        [ShipmentPricingSettingsId] INT NOT NULL PRIMARY KEY,
+        [DefaultBaseCost] DECIMAL(18,2) NOT NULL,
+        [InsuranceFlatCost] DECIMAL(18,2) NOT NULL,
+        [UpdatedAt] DATETIME2 NOT NULL
+    );
+END
+""";
+
+        const string createRulesTableSql = """
+IF OBJECT_ID(N'[dbo].[ShipmentPricingRules]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ShipmentPricingRules]
+    (
+        [ShipmentPricingRuleId] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        [ShipmentPricingSettingsId] INT NOT NULL,
+        [RuleName] NVARCHAR(120) NOT NULL,
+        [PostalCodePrefix] NVARCHAR(12) NOT NULL,
+        [BaseCost] DECIMAL(18,2) NOT NULL,
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [CK_ShipmentPricingRules_BaseCost] CHECK ([BaseCost] >= 0),
+        CONSTRAINT [FK_ShipmentPricingRules_ShipmentPricingSettings] FOREIGN KEY ([ShipmentPricingSettingsId]) REFERENCES [dbo].[ShipmentPricingSettings]([ShipmentPricingSettingsId])
+    );
+
+    CREATE UNIQUE INDEX [UQ_ShipmentPricingRules_SettingsPrefix]
+        ON [dbo].[ShipmentPricingRules]([ShipmentPricingSettingsId], [PostalCodePrefix]);
+END
+""";
+
+        await dbContext.Database.ExecuteSqlRawAsync(createSettingsTableSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(createRulesTableSql, cancellationToken);
+    }
+
+    private static async Task EnsureCarrierSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        const string createCarriersTableSql = """
+IF OBJECT_ID(N'[dbo].[Carriers]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Carriers]
+    (
+        [CarrierId] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        [Code] NVARCHAR(30) NOT NULL,
+        [Name] NVARCHAR(120) NOT NULL,
+        [ServiceLevel] NVARCHAR(80) NOT NULL,
+        [TrackingUrlTemplate] NVARCHAR(250) NOT NULL,
+        [SupportEmail] NVARCHAR(160) NOT NULL CONSTRAINT [DF_Carriers_SupportEmail] DEFAULT N'',
+        [SupportPhone] NVARCHAR(40) NOT NULL CONSTRAINT [DF_Carriers_SupportPhone] DEFAULT N'',
+        [InsuranceSupported] BIT NOT NULL CONSTRAINT [DF_Carriers_InsuranceSupported] DEFAULT 0,
+        [IsActive] BIT NOT NULL CONSTRAINT [DF_Carriers_IsActive] DEFAULT 1,
+        [Notes] NVARCHAR(500) NOT NULL CONSTRAINT [DF_Carriers_Notes] DEFAULT N'',
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [UQ_Carriers_Code] UNIQUE ([Code])
+    );
+
+    CREATE INDEX [IX_Carriers_IsActive_Name]
+        ON [dbo].[Carriers]([IsActive], [Name]);
+END
+""";
+
+        const string alterShipmentsTableSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'CarrierId') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [CarrierId] UNIQUEIDENTIFIER NULL;
+
+    ALTER TABLE [dbo].[Shipments]
+    ADD CONSTRAINT [FK_Shipments_Carriers]
+        FOREIGN KEY ([CarrierId]) REFERENCES [dbo].[Carriers]([CarrierId]);
+
+    CREATE INDEX [IX_Shipments_CarrierId] ON [dbo].[Shipments]([CarrierId]);
+END
+""";
+
+        await dbContext.Database.ExecuteSqlRawAsync(createCarriersTableSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(alterShipmentsTableSql, cancellationToken);
     }
 }

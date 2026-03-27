@@ -8,10 +8,12 @@ namespace Shipments.Api.Services;
 public sealed class ShipmentsService
 {
     private readonly OmsDbContext _dbContext;
+    private readonly ShipmentPricingService _shipmentPricingService;
 
-    public ShipmentsService(OmsDbContext dbContext)
+    public ShipmentsService(OmsDbContext dbContext, ShipmentPricingService shipmentPricingService)
     {
         _dbContext = dbContext;
+        _shipmentPricingService = shipmentPricingService;
     }
 
     public async Task<IReadOnlyCollection<ShipmentResponse>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -39,9 +41,9 @@ public sealed class ShipmentsService
 
     public async Task<ShipmentResponse> CreateAsync(CreateShipmentRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.OrderId == Guid.Empty || string.IsNullOrWhiteSpace(request.Customer) || string.IsNullOrWhiteSpace(request.Carrier))
+        if (request.OrderId == Guid.Empty || request.CarrierId == Guid.Empty || string.IsNullOrWhiteSpace(request.Customer))
         {
-            throw new InvalidOperationException("El envío requiere orderId, cliente y transportista.");
+            throw new InvalidOperationException("El envío requiere orderId, cliente y un carrier válido.");
         }
 
         var order = await _dbContext.Orders
@@ -49,18 +51,35 @@ public sealed class ShipmentsService
             .SingleOrDefaultAsync(current => current.OrderId == request.OrderId, cancellationToken)
             ?? throw new KeyNotFoundException("La orden asociada al envío no existe.");
 
+        var carrier = await _dbContext.Carriers
+            .SingleOrDefaultAsync(current => current.CarrierId == request.CarrierId, cancellationToken)
+            ?? throw new KeyNotFoundException("El carrier seleccionado no existe.");
+
+        if (!carrier.IsActive)
+        {
+            throw new InvalidOperationException("El carrier seleccionado está inactivo.");
+        }
+
+        if (request.IncludeInsurance && !carrier.InsuranceSupported)
+        {
+            throw new InvalidOperationException("El carrier seleccionado no admite seguro.");
+        }
+
+        var pricingQuote = await _shipmentPricingService.QuoteAsync(order.DestinationPostalCode, request.IncludeInsurance, cancellationToken);
+
         var shipment = new ShipmentEntity
         {
             ShipmentId = Guid.NewGuid(),
             OrderId = request.OrderId,
-            Carrier = request.Carrier,
+            CarrierId = carrier.CarrierId,
+            Carrier = carrier.Name,
             TrackingNumber = $"TRK-{DateTimeOffset.UtcNow:yyyyMMdd}-{Random.Shared.Next(10000, 99999)}",
             Status = "LabelCreated",
             WeightKg = request.WeightKg,
             HeightCm = request.HeightCm,
             WidthCm = request.WidthCm,
             LengthCm = request.LengthCm,
-            ShippingCost = request.ShippingCost,
+            ShippingCost = pricingQuote.TotalShippingCost,
             DestinationAddress = request.DestinationAddress,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -70,7 +89,7 @@ public sealed class ShipmentsService
                 {
                     ShipmentEventId = Guid.NewGuid(),
                     Status = "LabelCreated",
-                    Notes = "Etiqueta simulada generada en OMS.",
+                    Notes = $"Etiqueta simulada generada en OMS. Tarifa base {pricingQuote.BaseShippingCost:0.00} + seguro {pricingQuote.InsuranceCost:0.00}.",
                     EventTimestamp = DateTime.UtcNow
                 }
             }
@@ -168,6 +187,7 @@ public sealed class ShipmentsService
     {
         Id = shipment.ShipmentId,
         OrderId = shipment.OrderId,
+        CarrierId = shipment.CarrierId,
         Customer = shipment.Order.Customer,
         Carrier = shipment.Carrier,
         TrackingNumber = shipment.TrackingNumber,
@@ -176,7 +196,10 @@ public sealed class ShipmentsService
         HeightCm = shipment.HeightCm,
         WidthCm = shipment.WidthCm,
         LengthCm = shipment.LengthCm,
+        BaseShippingCost = shipment.ShippingCost,
+        InsuranceCost = 0m,
         ShippingCost = shipment.ShippingCost,
+        DestinationPostalCode = shipment.Order.DestinationPostalCode,
         DestinationAddress = shipment.DestinationAddress,
         Events = shipment.Events.OrderByDescending(@event => @event.EventTimestamp).Select(@event => new ShipmentEventResponse
         {

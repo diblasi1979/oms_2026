@@ -97,7 +97,12 @@ onMounted(loadOrders)
             <span>{{ authStore.username }}</span>
             <small>{{ authStore.role }}</small>
           </div>
-          <Button label="Salir" severity="secondary" outlined icon="pi pi-sign-out" @click="signOut" />
+          <div class="header-actions">
+            <Button label="Nuevo envío" icon="pi pi-send" @click="router.push({ name: 'shipment-create' })" />
+            <Button v-if="authStore.role === 'Admin'" label="Carriers" severity="secondary" outlined icon="pi pi-truck" @click="router.push({ name: 'carriers-settings' })" />
+            <Button v-if="authStore.role === 'Admin'" label="Tarifas" severity="secondary" outlined icon="pi pi-cog" @click="router.push({ name: 'shipping-pricing-settings' })" />
+            <Button label="Salir" severity="secondary" outlined icon="pi pi-sign-out" @click="signOut" />
+          </div>
         </div>
 
         <div class="hero-highlight">
