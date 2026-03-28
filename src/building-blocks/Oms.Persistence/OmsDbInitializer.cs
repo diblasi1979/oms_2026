@@ -27,13 +27,15 @@ public static class OmsDbInitializer
         }
 
         await EnsureCustomerTypeSchemaAsync(dbContext, cancellationToken);
+        await EnsureCustomerSchemaAsync(dbContext, cancellationToken);
         await EnsurePostalCatalogSchemaAsync(dbContext, cancellationToken);
         await EnsureCarrierSchemaAsync(dbContext, cancellationToken);
         await EnsureShipmentPricingSchemaAsync(dbContext, cancellationToken);
-        await EnsureShipmentCostBreakdownSchemaAsync(dbContext, cancellationToken);
         await EnsureCustomerTypeSeedDataAsync(dbContext, cancellationToken);
         await EnsurePostalCatalogSeedDataAsync(dbContext, cancellationToken);
         await EnsureCustomerTypeRelationshipsAsync(dbContext, cancellationToken);
+        await EnsureCustomerRelationshipsAsync(dbContext, cancellationToken);
+        await EnsureShipmentCostBreakdownSchemaAsync(dbContext, cancellationToken);
 
         if (!await dbContext.Warehouses.AnyAsync(cancellationToken))
         {
@@ -69,13 +71,27 @@ public static class OmsDbInitializer
         {
             var orderId = Guid.Parse("c71ab4d9-09a9-4dc0-bf89-e7614ed4b801");
             var shipmentId = Guid.Parse("d91ab4d9-09a9-4dc0-bf89-e7614ed4b802");
+            var customerId = Guid.Parse("b91ab4d9-09a9-4dc0-bf89-e7614ed4b803");
             var createdAt = DateTime.UtcNow.AddHours(-6);
             var tracking = "TRK-20260327-48291";
+
+            var customer = new CustomerEntity
+            {
+                CustomerId = customerId,
+                Code = "DISTRIBUIDORANORTE",
+                Name = "Distribuidora Norte",
+                CustomerTypeId = StandardCustomerTypeId,
+                AssignedPriceListName = "Lista General",
+                InsuranceRatePercentage = 2.0000m,
+                IsActive = true,
+                UpdatedAt = createdAt
+            };
 
             var order = new OrderEntity
             {
                 OrderId = orderId,
-                Customer = "Distribuidora Norte",
+                Customer = customer.Name,
+                CustomerId = customer.CustomerId,
                 CustomerTypeId = StandardCustomerTypeId,
                 Status = "Preparing",
                 Origin = "Web",
@@ -103,6 +119,7 @@ public static class OmsDbInitializer
                 ShipmentId = shipmentId,
                 OrderId = orderId,
                 CarrierId = Guid.Parse("6c1a2f12-0c19-4f23-9fb2-000000000001"),
+                CustomerId = customer.CustomerId,
                 CustomerTypeId = StandardCustomerTypeId,
                 RecipientName = "Marcela Gomez",
                 RecipientPhone = "+54 261 555 0101",
@@ -128,6 +145,7 @@ public static class OmsDbInitializer
             shipment.Events.Add(new ShipmentEventEntity { ShipmentEventId = Guid.NewGuid(), ShipmentId = shipmentId, Status = "LabelCreated", Notes = "Etiqueta simulada generada en OMS.", EventTimestamp = createdAt.AddMinutes(30) });
             shipment.Events.Add(new ShipmentEventEntity { ShipmentEventId = Guid.NewGuid(), ShipmentId = shipmentId, Status = "InTransit", Notes = "Unidad despachada desde hub regional.", EventTimestamp = createdAt.AddHours(1) });
 
+            await dbContext.Customers.AddAsync(customer, cancellationToken);
             await dbContext.Orders.AddAsync(order, cancellationToken);
             await dbContext.Shipments.AddAsync(shipment, cancellationToken);
         }
@@ -521,6 +539,145 @@ CREATE UNIQUE INDEX [UQ_ShipmentPricingRules_SettingsCustomerCarrierPrefix]
         await dbContext.Database.ExecuteSqlRawAsync(ensurePricingIndexSql, cancellationToken);
     }
 
+    private static async Task EnsureCustomerRelationshipsAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        const string backfillCustomersSql = """
+IF OBJECT_ID(N'[dbo].[Customers]', N'U') IS NOT NULL
+BEGIN
+    ;WITH [source] AS
+    (
+        SELECT DISTINCT
+            [order].[CustomerTypeId],
+            LTRIM(RTRIM(COALESCE([order].[Customer], N''))) AS [Name]
+        FROM [dbo].[Orders] AS [order]
+        WHERE [order].[CustomerTypeId] IS NOT NULL
+          AND LTRIM(RTRIM(COALESCE([order].[Customer], N''))) <> N''
+    )
+    INSERT INTO [dbo].[Customers]
+    (
+        [CustomerId],
+        [Code],
+        [Name],
+        [CustomerTypeId],
+        [AssignedPriceListName],
+        [InsuranceRatePercentage],
+        [IsActive],
+        [UpdatedAt]
+    )
+    SELECT
+        NEWID(),
+        CONCAT(N'CUST', REPLACE(CONVERT(NVARCHAR(36), NEWID()), N'-', N'')),
+        [source].[Name],
+        [source].[CustomerTypeId],
+        COALESCE([customerType].[AssignedPriceListName], N''),
+        COALESCE([customerType].[InsuranceRatePercentage], 0),
+        1,
+        SYSUTCDATETIME()
+    FROM [source]
+    INNER JOIN [dbo].[CustomerTypes] AS [customerType]
+        ON [customerType].[CustomerTypeId] = [source].[CustomerTypeId]
+    LEFT JOIN [dbo].[Customers] AS [existing]
+        ON [existing].[CustomerTypeId] = [source].[CustomerTypeId]
+       AND [existing].[Name] = [source].[Name]
+    WHERE [existing].[CustomerId] IS NULL;
+END
+""";
+
+        const string syncCustomerCommercialTermsSql = """
+UPDATE [customer]
+SET [customer].[AssignedPriceListName] = CASE
+        WHEN LTRIM(RTRIM(COALESCE([customer].[AssignedPriceListName], N''))) = N''
+            THEN COALESCE([customerType].[AssignedPriceListName], N'')
+        ELSE [customer].[AssignedPriceListName]
+    END,
+    [customer].[InsuranceRatePercentage] = CASE
+        WHEN [customer].[InsuranceRatePercentage] = 0 AND [customerType].[InsuranceRatePercentage] > 0
+            THEN [customerType].[InsuranceRatePercentage]
+        ELSE [customer].[InsuranceRatePercentage]
+    END
+FROM [dbo].[Customers] AS [customer]
+INNER JOIN [dbo].[CustomerTypes] AS [customerType]
+    ON [customerType].[CustomerTypeId] = [customer].[CustomerTypeId];
+""";
+
+        const string backfillOrdersCustomerSql = """
+IF COL_LENGTH(N'[dbo].[Orders]', N'CustomerId') IS NOT NULL
+BEGIN
+    UPDATE [order]
+    SET [order].[CustomerId] = [customer].[CustomerId]
+    FROM [dbo].[Orders] AS [order]
+    INNER JOIN [dbo].[Customers] AS [customer]
+        ON [customer].[CustomerTypeId] = [order].[CustomerTypeId]
+       AND [customer].[Name] = LTRIM(RTRIM(COALESCE([order].[Customer], N'')))
+    WHERE [order].[CustomerId] IS NULL;
+END
+""";
+
+        const string backfillShipmentsCustomerSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'CustomerId') IS NOT NULL
+BEGIN
+    UPDATE [shipment]
+    SET [shipment].[CustomerId] = [order].[CustomerId]
+    FROM [dbo].[Shipments] AS [shipment]
+    INNER JOIN [dbo].[Orders] AS [order]
+        ON [order].[OrderId] = [shipment].[OrderId]
+    WHERE [shipment].[CustomerId] IS NULL
+      AND [order].[CustomerId] IS NOT NULL;
+END
+""";
+
+        const string ensureOrdersCustomerNotNullSql = """
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Orders]') AND [name] = 'CustomerId' AND is_nullable = 1)
+BEGIN
+    ALTER TABLE [dbo].[Orders] ALTER COLUMN [CustomerId] UNIQUEIDENTIFIER NOT NULL;
+END
+""";
+
+        const string ensureShipmentsCustomerNotNullSql = """
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Shipments]') AND [name] = 'CustomerId' AND is_nullable = 1)
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ALTER COLUMN [CustomerId] UNIQUEIDENTIFIER NOT NULL;
+END
+""";
+
+        const string ensureOrdersCustomerFkSql = """
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE [name] = 'FK_Orders_Customers')
+BEGIN
+    ALTER TABLE [dbo].[Orders]
+    ADD CONSTRAINT [FK_Orders_Customers]
+        FOREIGN KEY ([CustomerId]) REFERENCES [dbo].[Customers]([CustomerId]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE [name] = 'IX_Orders_CustomerId' AND object_id = OBJECT_ID(N'[dbo].[Orders]'))
+BEGIN
+    CREATE INDEX [IX_Orders_CustomerId] ON [dbo].[Orders]([CustomerId]);
+END
+""";
+
+        const string ensureShipmentsCustomerFkSql = """
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE [name] = 'FK_Shipments_Customers')
+BEGIN
+    ALTER TABLE [dbo].[Shipments]
+    ADD CONSTRAINT [FK_Shipments_Customers]
+        FOREIGN KEY ([CustomerId]) REFERENCES [dbo].[Customers]([CustomerId]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE [name] = 'IX_Shipments_CustomerId' AND object_id = OBJECT_ID(N'[dbo].[Shipments]'))
+BEGIN
+    CREATE INDEX [IX_Shipments_CustomerId] ON [dbo].[Shipments]([CustomerId]);
+END
+""";
+
+        await dbContext.Database.ExecuteSqlRawAsync(backfillCustomersSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(syncCustomerCommercialTermsSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(backfillOrdersCustomerSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(backfillShipmentsCustomerSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureOrdersCustomerNotNullSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureShipmentsCustomerNotNullSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureOrdersCustomerFkSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureShipmentsCustomerFkSql, cancellationToken);
+    }
+
     private static async Task EnsureShipmentPricingSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
     {
         const string createSettingsTableSql = """
@@ -774,6 +931,52 @@ END
         await dbContext.Database.ExecuteSqlRawAsync(ensureInsuranceRatePercentageColumnSql, cancellationToken);
     }
 
+    private static async Task EnsureCustomerSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        const string createCustomersTableSql = """
+IF OBJECT_ID(N'[dbo].[Customers]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Customers]
+    (
+        [CustomerId] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        [Code] NVARCHAR(40) NOT NULL,
+        [Name] NVARCHAR(160) NOT NULL,
+        [CustomerTypeId] UNIQUEIDENTIFIER NOT NULL,
+        [AssignedPriceListName] NVARCHAR(120) NOT NULL CONSTRAINT [DF_Customers_AssignedPriceListName] DEFAULT N'',
+        [InsuranceRatePercentage] DECIMAL(9,4) NOT NULL CONSTRAINT [DF_Customers_InsuranceRatePercentage] DEFAULT 0,
+        [IsActive] BIT NOT NULL CONSTRAINT [DF_Customers_IsActive] DEFAULT 1,
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [UQ_Customers_Code] UNIQUE ([Code]),
+        CONSTRAINT [FK_Customers_CustomerTypes] FOREIGN KEY ([CustomerTypeId]) REFERENCES [dbo].[CustomerTypes]([CustomerTypeId])
+    );
+
+    CREATE UNIQUE INDEX [UQ_Customers_CustomerTypeId_Name]
+        ON [dbo].[Customers]([CustomerTypeId], [Name]);
+
+    CREATE INDEX [IX_Customers_IsActive_Name]
+        ON [dbo].[Customers]([IsActive], [Name]);
+END
+""";
+
+        const string ensureOrdersCustomerIdColumnSql = """
+IF COL_LENGTH(N'[dbo].[Orders]', N'CustomerId') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Orders] ADD [CustomerId] UNIQUEIDENTIFIER NULL;
+END
+""";
+
+        const string ensureShipmentsCustomerIdColumnSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'CustomerId') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [CustomerId] UNIQUEIDENTIFIER NULL;
+END
+""";
+
+        await dbContext.Database.ExecuteSqlRawAsync(createCustomersTableSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureOrdersCustomerIdColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureShipmentsCustomerIdColumnSql, cancellationToken);
+    }
+
     private static async Task EnsureShipmentCostBreakdownSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
     {
         const string ensureDeclaredValueColumnSql = """
@@ -815,11 +1018,13 @@ END
 UPDATE [shipment]
 SET [shipment].[DeclaredMerchandiseValue] = ISNULL([order].[Total], 0),
     [shipment].[BaseShippingCost] = CASE WHEN [shipment].[BaseShippingCost] = 0 THEN [shipment].[ShippingCost] ELSE [shipment].[BaseShippingCost] END,
-    [shipment].[AppliedPriceListName] = CASE WHEN LTRIM(RTRIM(COALESCE([shipment].[AppliedPriceListName], N''))) = N'' THEN COALESCE([customerType].[AssignedPriceListName], N'') ELSE [shipment].[AppliedPriceListName] END,
+    [shipment].[AppliedPriceListName] = CASE WHEN LTRIM(RTRIM(COALESCE([shipment].[AppliedPriceListName], N''))) = N'' THEN COALESCE([customer].[AssignedPriceListName], [customerType].[AssignedPriceListName], N'') ELSE [shipment].[AppliedPriceListName] END,
     [shipment].[AppliedZone] = CASE WHEN LTRIM(RTRIM(COALESCE([shipment].[AppliedZone], N''))) = N'' THEN COALESCE([postalCode].[Zone], N'') ELSE [shipment].[AppliedZone] END
 FROM [dbo].[Shipments] AS [shipment]
 LEFT JOIN [dbo].[Orders] AS [order]
     ON [order].[OrderId] = [shipment].[OrderId]
+LEFT JOIN [dbo].[Customers] AS [customer]
+    ON [customer].[CustomerId] = [shipment].[CustomerId]
 LEFT JOIN [dbo].[CustomerTypes] AS [customerType]
     ON [customerType].[CustomerTypeId] = [shipment].[CustomerTypeId]
 LEFT JOIN [dbo].[PostalCodes] AS [postalCode]

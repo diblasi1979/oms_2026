@@ -64,7 +64,7 @@ public sealed class OrdersService
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(request.Customer))
+        if (!request.CustomerId.HasValue && string.IsNullOrWhiteSpace(request.Customer))
         {
             throw new InvalidOperationException("El cliente es obligatorio.");
         }
@@ -95,6 +95,9 @@ public sealed class OrdersService
             throw new InvalidOperationException("El tipo de cliente seleccionado está inactivo.");
         }
 
+        var timestamp = DateTime.UtcNow;
+        var customer = await ResolveCustomerAsync(request, customerType, timestamp, cancellationToken);
+
         var allocation = await SelectWarehouseAsync(request, cancellationToken);
         var requestItemsBySku = request.Items.ToDictionary(item => item.Sku.Trim(), StringComparer.OrdinalIgnoreCase);
         var inventoryRows = await _dbContext.Inventory
@@ -115,12 +118,12 @@ public sealed class OrdersService
             inventoryItem.ReservedStock += requestItemsBySku[inventoryItem.Sku].Quantity;
         }
 
-        var timestamp = DateTime.UtcNow;
         var orderEntity = new OrderEntity
         {
             OrderId = Guid.NewGuid(),
-            Customer = request.Customer.Trim(),
-            CustomerTypeId = customerType.CustomerTypeId,
+            Customer = customer.Name,
+            CustomerId = customer.CustomerId,
+            CustomerTypeId = customer.CustomerTypeId,
             Status = OrderStatus.Pending.ToString(),
             Origin = request.Origin.ToString(),
             Total = request.Items.Sum(item => item.Quantity * item.UnitPrice),
@@ -230,6 +233,7 @@ public sealed class OrdersService
     private static OrderSummaryResponse MapSummary(OrderEntity order) => new()
     {
         Id = order.OrderId,
+        CustomerId = order.CustomerId,
         Customer = order.Customer,
         CustomerTypeId = order.CustomerTypeId,
         CustomerTypeCode = order.CustomerType.Code,
@@ -245,6 +249,7 @@ public sealed class OrdersService
     private static OrderDetailResponse MapDetail(OrderEntity order) => new()
     {
         Id = order.OrderId,
+        CustomerId = order.CustomerId,
         Customer = order.Customer,
         CustomerTypeId = order.CustomerTypeId,
         CustomerTypeCode = order.CustomerType.Code,
@@ -273,6 +278,57 @@ public sealed class OrdersService
                 Details = log.Details
             }).ToList()
     };
+
+    private async Task<CustomerEntity> ResolveCustomerAsync(CreateOrderRequest request, CustomerTypeEntity customerType, DateTime timestamp, CancellationToken cancellationToken)
+    {
+        if (request.CustomerId.HasValue && request.CustomerId.Value != Guid.Empty)
+        {
+            var existingCustomer = await _dbContext.Customers
+                .SingleOrDefaultAsync(current => current.CustomerId == request.CustomerId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("El cliente seleccionado no existe.");
+
+            if (!existingCustomer.IsActive)
+            {
+                throw new InvalidOperationException("El cliente seleccionado está inactivo.");
+            }
+
+            if (existingCustomer.CustomerTypeId != customerType.CustomerTypeId)
+            {
+                throw new InvalidOperationException("El cliente informado no corresponde al tipo de cliente seleccionado.");
+            }
+
+            return existingCustomer;
+        }
+
+        var customerName = request.Customer.Trim();
+        var existingByName = await _dbContext.Customers
+            .SingleOrDefaultAsync(current => current.CustomerTypeId == customerType.CustomerTypeId && current.Name == customerName, cancellationToken);
+
+        if (existingByName is not null)
+        {
+            if (!existingByName.IsActive)
+            {
+                throw new InvalidOperationException("El cliente seleccionado está inactivo.");
+            }
+
+            return existingByName;
+        }
+
+        var customer = new CustomerEntity
+        {
+            CustomerId = Guid.NewGuid(),
+            Code = await CustomerCodeGenerator.GenerateUniqueCodeAsync(_dbContext, string.Empty, customerName, null, cancellationToken),
+            Name = customerName,
+            CustomerTypeId = customerType.CustomerTypeId,
+            AssignedPriceListName = customerType.AssignedPriceListName,
+            InsuranceRatePercentage = customerType.InsuranceRatePercentage,
+            IsActive = true,
+            UpdatedAt = timestamp
+        };
+
+        await _dbContext.Customers.AddAsync(customer, cancellationToken);
+        return customer;
+    }
 
     private static double CalculateDistanceKm(decimal originLatitude, decimal originLongitude, decimal destinationLatitude, decimal destinationLongitude)
     {

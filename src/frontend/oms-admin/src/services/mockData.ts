@@ -1,4 +1,4 @@
-import type { AuthSession, CarrierRecord, CreateShipmentPayload, CustomerTypeRecord, OrderDetail, OrderSummary, PostalCodePriceListRecord, PostalCodeRecord, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+import type { AuthSession, CarrierRecord, CreateShipmentPayload, CustomerRecord, CustomerTypeRecord, OrderDetail, OrderSummary, PostalCodePriceListRecord, PostalCodeRecord, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
 
 const mockCustomerTypes: CustomerTypeRecord[] = [
   {
@@ -6,8 +6,6 @@ const mockCustomerTypes: CustomerTypeRecord[] = [
     code: 'STANDARD',
     name: 'Standard',
     description: 'Clientes estándar con tarifa general.',
-    assignedPriceListName: 'Lista General',
-    insuranceRatePercentage: 2,
     isActive: true,
   },
   {
@@ -15,8 +13,6 @@ const mockCustomerTypes: CustomerTypeRecord[] = [
     code: 'PREMIUM',
     name: 'Premium',
     description: 'Clientes preferenciales con acuerdos comerciales específicos.',
-    assignedPriceListName: 'Lista Premium',
-    insuranceRatePercentage: 1.5,
     isActive: true,
   },
   {
@@ -24,8 +20,31 @@ const mockCustomerTypes: CustomerTypeRecord[] = [
     code: 'WHOLESALE',
     name: 'Mayorista',
     description: 'Clientes mayoristas o cuentas corporativas de alto volumen.',
-    assignedPriceListName: 'Lista Mayorista',
-    insuranceRatePercentage: 1,
+    isActive: true,
+  },
+]
+
+const mockCustomers: CustomerRecord[] = [
+  {
+    id: 'b91ab4d9-09a9-4dc0-bf89-e7614ed4b803',
+    code: 'DISTRIBUIDORANORTE',
+    name: 'Distribuidora Norte',
+    customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001',
+    customerTypeCode: 'STANDARD',
+    customerTypeName: 'Standard',
+    assignedPriceListName: 'Lista General',
+    insuranceRatePercentage: 2,
+    isActive: true,
+  },
+  {
+    id: 'b91ab4d9-09a9-4dc0-bf89-e7614ed4b804',
+    code: 'MARKETPLACECENTER',
+    name: 'Marketplace Center',
+    customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000002',
+    customerTypeCode: 'PREMIUM',
+    customerTypeName: 'Premium',
+    assignedPriceListName: 'Lista Premium',
+    insuranceRatePercentage: 1.5,
     isActive: true,
   },
 ]
@@ -122,6 +141,7 @@ const mockPostalCodePriceLists: PostalCodePriceListRecord[] = [
 const mockOrders: OrderDetail[] = [
   {
     id: 'c71ab4d9-09a9-4dc0-bf89-e7614ed4b801',
+    customerId: 'b91ab4d9-09a9-4dc0-bf89-e7614ed4b803',
     customer: 'Distribuidora Norte',
     customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001',
     customerTypeCode: 'STANDARD',
@@ -159,6 +179,7 @@ const mockOrders: OrderDetail[] = [
   },
   {
     id: '85a2c699-96e2-43b5-b0f0-f5d8da5a7921',
+    customerId: 'b91ab4d9-09a9-4dc0-bf89-e7614ed4b804',
     customer: 'Marketplace Center',
     customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000002',
     customerTypeCode: 'PREMIUM',
@@ -240,6 +261,14 @@ export function getMockCustomerTypeById(customerTypeId: string): CustomerTypeRec
   return mockCustomerTypes.find((customerType) => customerType.id === customerTypeId)
 }
 
+export function getMockCustomers(includeInactive = false): CustomerRecord[] {
+  return includeInactive ? [...mockCustomers] : mockCustomers.filter((customer) => customer.isActive)
+}
+
+export function getMockCustomerById(customerId: string): CustomerRecord | undefined {
+  return mockCustomers.find((customer) => customer.id === customerId)
+}
+
 export function getMockCarriers(includeInactive = false): CarrierRecord[] {
   return includeInactive ? [...mockCarriers] : mockCarriers.filter((carrier) => carrier.isActive)
 }
@@ -264,30 +293,32 @@ export function getMockPostalCodePriceListById(postalCodePriceListId: string): P
   return mockPostalCodePriceLists.find((priceList) => priceList.id === postalCodePriceListId)
 }
 
-export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: string, destinationPostalCode: string, declaredValue: number, includeInsurance = true): ShipmentPricingQuote {
+export function getMockShipmentPricingQuote(customerId: string, carrierId: string, destinationPostalCode: string, declaredValue: number, includeInsurance = true): ShipmentPricingQuote {
   const settings = getMockShipmentPricingSettings()
   const normalized = destinationPostalCode.replace(/[^a-z0-9]/gi, '').toUpperCase()
-  const customerType = getMockCustomerTypeById(customerTypeId)
+  const customer = getMockCustomerById(customerId)
   const carrier = getMockCarrierById(carrierId)
   const match = settings.priceLists.find((priceList) =>
-    priceList.listName === customerType?.assignedPriceListName && priceList.postalCode === normalized,
+    priceList.listName === customer?.assignedPriceListName && priceList.postalCode === normalized,
   )
 
   const baseShippingCost = match?.value ?? 0
   const insuranceCost = includeInsurance
-    ? Math.round(declaredValue * ((customerType?.insuranceRatePercentage ?? 0) / 100) * 100) / 100
+    ? Math.round(declaredValue * ((customer?.insuranceRatePercentage ?? 0) / 100) * 100) / 100
     : 0
 
   return {
-    customerTypeId,
-    customerTypeCode: customerType?.code ?? 'STANDARD',
-    customerTypeName: customerType?.name ?? 'Standard',
+    customerId,
+    customerName: customer?.name ?? 'Cliente no definido',
+    customerTypeId: customer?.customerTypeId ?? '7f3fbc62-b77f-4d2e-9c4c-000000000001',
+    customerTypeCode: customer?.customerTypeCode ?? 'STANDARD',
+    customerTypeName: customer?.customerTypeName ?? 'Standard',
     carrierId,
     carrierName: carrier?.name ?? 'Carrier no definido',
     destinationPostalCode: normalized,
-    assignedPriceListName: customerType?.assignedPriceListName ?? '',
+    assignedPriceListName: customer?.assignedPriceListName ?? '',
     matchedZone: match?.zone ?? '',
-    insuranceRatePercentage: customerType?.insuranceRatePercentage ?? 0,
+    insuranceRatePercentage: customer?.insuranceRatePercentage ?? 0,
     declaredValue,
     baseShippingCost,
     insuranceCost,
@@ -298,12 +329,13 @@ export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: s
 export function getMockCreatedShipment(payload: CreateShipmentPayload): ShipmentRecord {
   const order = getMockOrderById(payload.orderId)
   const carrier = getMockCarrierById(payload.carrierId)
-  const quote = getMockShipmentPricingQuote(order?.customerTypeId ?? '7f3fbc62-b77f-4d2e-9c4c-000000000001', payload.carrierId, order?.destinationPostalCode ?? '1000', order?.total ?? 0, payload.includeInsurance)
+  const quote = getMockShipmentPricingQuote(order?.customerId ?? 'b91ab4d9-09a9-4dc0-bf89-e7614ed4b803', payload.carrierId, order?.destinationPostalCode ?? '1000', order?.total ?? 0, payload.includeInsurance)
 
   return {
     id: `mock-shipment-${payload.orderId}`,
     orderId: payload.orderId,
     carrierId: payload.carrierId,
+    customerId: order?.customerId ?? 'b91ab4d9-09a9-4dc0-bf89-e7614ed4b803',
     customer: payload.customer,
     customerTypeId: order?.customerTypeId ?? '7f3fbc62-b77f-4d2e-9c4c-000000000001',
     customerTypeCode: order?.customerTypeCode ?? 'STANDARD',

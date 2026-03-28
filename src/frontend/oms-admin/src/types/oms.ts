@@ -17,6 +17,7 @@ export interface AuthSession {
 
 export interface OrderSummary {
   id: string
+  customerId: string
   customer: string
   customerTypeId: string
   customerTypeCode: string
@@ -86,6 +87,7 @@ export interface ShipmentRecord {
   id: string
   orderId: string
   carrierId?: string | null
+  customerId: string
   customer: string
   customerTypeId: string
   customerTypeCode: string
@@ -174,6 +176,8 @@ export interface ShipmentPricingSettings {
 }
 
 export interface ShipmentPricingQuote {
+  customerId?: string | null
+  customerName: string
   customerTypeId: string
   customerTypeCode: string
   customerTypeName: string
@@ -194,8 +198,6 @@ export interface CustomerTypeRecord {
   code: string
   name: string
   description: string
-  assignedPriceListName: string
-  insuranceRatePercentage: number
   isActive: boolean
 }
 
@@ -203,6 +205,25 @@ export interface CustomerTypeUpsertPayload {
   code: string
   name: string
   description: string
+  isActive: boolean
+}
+
+export interface CustomerRecord {
+  id: string
+  code: string
+  name: string
+  customerTypeId: string
+  customerTypeCode: string
+  customerTypeName: string
+  assignedPriceListName: string
+  insuranceRatePercentage: number
+  isActive: boolean
+}
+
+export interface CustomerUpsertPayload {
+  code: string
+  name: string
+  customerTypeId: string
   assignedPriceListName: string
   insuranceRatePercentage: number
   isActive: boolean

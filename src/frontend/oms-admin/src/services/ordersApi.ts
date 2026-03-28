@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { getMockCustomerTypeById, getMockCustomerTypes, getMockOrderById, getMockOrders } from './mockData'
-import type { CustomerTypeRecord, CustomerTypeUpsertPayload, DashboardFilters, OrderDetail, OrderSummary } from '../types/oms'
+import { getMockCustomerById, getMockCustomerTypeById, getMockCustomerTypes, getMockCustomers, getMockOrderById, getMockOrders } from './mockData'
+import type { CustomerRecord, CustomerTypeRecord, CustomerTypeUpsertPayload, CustomerUpsertPayload, DashboardFilters, OrderDetail, OrderSummary } from '../types/oms'
 
 const ORDERS_API_BASE_URL = import.meta.env.VITE_ORDERS_API_BASE_URL ?? 'https://localhost:7001'
 
@@ -103,5 +103,83 @@ export async function updateCustomerType(token: string, customerTypeId: string, 
       ...(getMockCustomerTypeById(customerTypeId) ?? { id: customerTypeId }),
       ...payload,
     } as CustomerTypeRecord
+  }
+}
+
+export async function fetchCustomers(token: string, includeInactive = false, search = ''): Promise<CustomerRecord[]> {
+  try {
+    const response = await axios.get<CustomerRecord[]>(`${ORDERS_API_BASE_URL}/api/customers`, {
+      params: {
+        includeInactive,
+        search: search || undefined,
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    const normalizedSearch = search.trim().toLowerCase()
+    return getMockCustomers(includeInactive).filter((customer) => {
+      if (!normalizedSearch) {
+        return true
+      }
+
+      return customer.name.toLowerCase().includes(normalizedSearch) || customer.code.toLowerCase().includes(normalizedSearch)
+    })
+  }
+}
+
+export async function createCustomer(token: string, payload: CustomerUpsertPayload): Promise<CustomerRecord> {
+  try {
+    const response = await axios.post<CustomerRecord>(`${ORDERS_API_BASE_URL}/api/customers`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    const customerType = getMockCustomerTypeById(payload.customerTypeId)
+    return {
+      id: crypto.randomUUID(),
+      code: payload.code,
+      name: payload.name,
+      customerTypeId: payload.customerTypeId,
+      customerTypeCode: customerType?.code ?? '',
+      customerTypeName: customerType?.name ?? '',
+      assignedPriceListName: payload.assignedPriceListName,
+      insuranceRatePercentage: payload.insuranceRatePercentage,
+      isActive: payload.isActive,
+    }
+  }
+}
+
+export async function updateCustomer(token: string, customerId: string, payload: CustomerUpsertPayload): Promise<CustomerRecord> {
+  try {
+    const response = await axios.put<CustomerRecord>(`${ORDERS_API_BASE_URL}/api/customers/${customerId}`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    const customerType = getMockCustomerTypeById(payload.customerTypeId)
+    return {
+      ...(getMockCustomerById(customerId) ?? { id: customerId }),
+      code: payload.code,
+      name: payload.name,
+      customerTypeId: payload.customerTypeId,
+      customerTypeCode: customerType?.code ?? '',
+      customerTypeName: customerType?.name ?? '',
+      assignedPriceListName: payload.assignedPriceListName,
+      insuranceRatePercentage: payload.insuranceRatePercentage,
+      isActive: payload.isActive,
+    } as CustomerRecord
   }
 }

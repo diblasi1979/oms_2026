@@ -13,6 +13,7 @@ public sealed class OmsDbContext : DbContext
     public DbSet<OrderEntity> Orders => Set<OrderEntity>();
     public DbSet<OrderItemEntity> OrderItems => Set<OrderItemEntity>();
     public DbSet<OrderLogEntity> OrderLogs => Set<OrderLogEntity>();
+    public DbSet<CustomerEntity> Customers => Set<CustomerEntity>();
     public DbSet<CustomerTypeEntity> CustomerTypes => Set<CustomerTypeEntity>();
     public DbSet<PostalCodeEntity> PostalCodes => Set<PostalCodeEntity>();
     public DbSet<PostalCodePriceListEntity> PostalCodePriceLists => Set<PostalCodePriceListEntity>();
@@ -45,6 +46,7 @@ public sealed class OmsDbContext : DbContext
         });
         orders.HasKey(entity => entity.OrderId);
         orders.Property(entity => entity.Customer).HasMaxLength(160).IsRequired();
+        orders.Property(entity => entity.CustomerId).IsRequired();
         orders.Property(entity => entity.Status).HasMaxLength(30).IsRequired();
         orders.Property(entity => entity.CustomerTypeId).IsRequired();
         orders.Property(entity => entity.Origin).HasMaxLength(30).IsRequired();
@@ -57,6 +59,7 @@ public sealed class OmsDbContext : DbContext
         orders.Property(entity => entity.ShipmentTrackingNumber).HasMaxLength(80);
         orders.Property(entity => entity.CreatedAt).HasColumnType("datetime2");
         orders.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");
+        orders.HasIndex(entity => entity.CustomerId).HasDatabaseName("IX_Orders_CustomerId");
         orders.HasIndex(entity => new { entity.Status, entity.CreatedAt }).HasDatabaseName("IX_Orders_Status_CreatedAt");
         orders.HasIndex(entity => new { entity.Origin, entity.CreatedAt }).HasDatabaseName("IX_Orders_Origin_CreatedAt");
         orders.HasIndex(entity => entity.CustomerTypeId).HasDatabaseName("IX_Orders_CustomerTypeId");
@@ -64,8 +67,28 @@ public sealed class OmsDbContext : DbContext
             .WithMany(entity => entity.Orders)
             .HasForeignKey(entity => entity.AssignedWarehouseId)
             .OnDelete(DeleteBehavior.Restrict);
+        orders.HasOne(entity => entity.CustomerRecord)
+            .WithMany(entity => entity.Orders)
+            .HasForeignKey(entity => entity.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
         orders.HasOne(entity => entity.CustomerType)
             .WithMany(entity => entity.Orders)
+            .HasForeignKey(entity => entity.CustomerTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        var customers = modelBuilder.Entity<CustomerEntity>();
+        customers.ToTable("Customers");
+        customers.HasKey(entity => entity.CustomerId);
+        customers.Property(entity => entity.Code).HasMaxLength(40).IsRequired();
+        customers.Property(entity => entity.Name).HasMaxLength(160).IsRequired();
+        customers.Property(entity => entity.AssignedPriceListName).HasMaxLength(120).IsRequired();
+        customers.Property(entity => entity.InsuranceRatePercentage).HasColumnType("decimal(9,4)");
+        customers.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");
+        customers.HasIndex(entity => entity.Code).IsUnique().HasDatabaseName("UQ_Customers_Code");
+        customers.HasIndex(entity => new { entity.CustomerTypeId, entity.Name }).IsUnique().HasDatabaseName("UQ_Customers_CustomerTypeId_Name");
+        customers.HasIndex(entity => new { entity.IsActive, entity.Name }).HasDatabaseName("IX_Customers_IsActive_Name");
+        customers.HasOne(entity => entity.CustomerType)
+            .WithMany()
             .HasForeignKey(entity => entity.CustomerTypeId)
             .OnDelete(DeleteBehavior.Restrict);
         
@@ -159,6 +182,7 @@ public sealed class OmsDbContext : DbContext
         shipments.ToTable("Shipments");
         shipments.HasKey(entity => entity.ShipmentId);
         shipments.Property(entity => entity.CarrierId);
+        shipments.Property(entity => entity.CustomerId).IsRequired();
         shipments.Property(entity => entity.RecipientName).HasMaxLength(160).IsRequired();
         shipments.Property(entity => entity.RecipientPhone).HasMaxLength(40).IsRequired();
         shipments.Property(entity => entity.CustomerTypeId).IsRequired();
@@ -180,11 +204,16 @@ public sealed class OmsDbContext : DbContext
         shipments.Property(entity => entity.CreatedAt).HasColumnType("datetime2");
         shipments.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");
         shipments.HasIndex(entity => entity.OrderId).HasDatabaseName("IX_Shipments_OrderId");
+        shipments.HasIndex(entity => entity.CustomerId).HasDatabaseName("IX_Shipments_CustomerId");
         shipments.HasIndex(entity => entity.CustomerTypeId).HasDatabaseName("IX_Shipments_CustomerTypeId");
         shipments.HasIndex(entity => entity.TrackingNumber).IsUnique().HasDatabaseName("UQ_Shipments_Tracking");
         shipments.HasOne(entity => entity.Order)
             .WithMany(entity => entity.Shipments)
             .HasForeignKey(entity => entity.OrderId);
+        shipments.HasOne(entity => entity.CustomerRecord)
+            .WithMany(entity => entity.Shipments)
+            .HasForeignKey(entity => entity.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
         shipments.HasOne(entity => entity.CarrierSettings)
             .WithMany(entity => entity.Shipments)
             .HasForeignKey(entity => entity.CarrierId)

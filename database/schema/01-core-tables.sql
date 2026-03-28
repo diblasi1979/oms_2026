@@ -23,6 +23,20 @@ CREATE TABLE CustomerTypes (
 );
 GO
 
+CREATE TABLE Customers (
+    CustomerId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Code NVARCHAR(40) NOT NULL,
+    Name NVARCHAR(160) NOT NULL,
+    CustomerTypeId UNIQUEIDENTIFIER NOT NULL,
+    AssignedPriceListName NVARCHAR(120) NOT NULL DEFAULT N'',
+    InsuranceRatePercentage DECIMAL(9,4) NOT NULL DEFAULT 0,
+    IsActive BIT NOT NULL DEFAULT 1,
+    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_Customers_Code UNIQUE (Code),
+    CONSTRAINT FK_Customers_CustomerTypes FOREIGN KEY (CustomerTypeId) REFERENCES CustomerTypes (CustomerTypeId)
+);
+GO
+
 CREATE TABLE PostalCodes (
     PostalCodeId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     Country NVARCHAR(80) NOT NULL,
@@ -47,6 +61,7 @@ GO
 CREATE TABLE Orders (
     OrderId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     Customer NVARCHAR(160) NOT NULL,
+    CustomerId UNIQUEIDENTIFIER NOT NULL,
     CustomerTypeId UNIQUEIDENTIFIER NOT NULL,
     Status NVARCHAR(30) NOT NULL,
     Origin NVARCHAR(30) NOT NULL,
@@ -61,6 +76,7 @@ CREATE TABLE Orders (
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_Orders_Warehouses FOREIGN KEY (AssignedWarehouseId) REFERENCES Warehouses (WarehouseId),
+    CONSTRAINT FK_Orders_Customers FOREIGN KEY (CustomerId) REFERENCES Customers (CustomerId),
     CONSTRAINT FK_Orders_CustomerTypes FOREIGN KEY (CustomerTypeId) REFERENCES CustomerTypes (CustomerTypeId),
     CONSTRAINT CK_Orders_Status CHECK (Status IN ('Pending', 'Preparing', 'Shipped', 'Delivered', 'Cancelled')),
     CONSTRAINT CK_Orders_Origin CHECK (Origin IN ('Marketplace', 'Web', 'Manual'))
@@ -116,6 +132,7 @@ CREATE TABLE Shipments (
     ShipmentId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     OrderId UNIQUEIDENTIFIER NOT NULL,
     CarrierId UNIQUEIDENTIFIER NULL,
+    CustomerId UNIQUEIDENTIFIER NOT NULL,
     CustomerTypeId UNIQUEIDENTIFIER NOT NULL,
     RecipientName NVARCHAR(160) NOT NULL,
     RecipientPhone NVARCHAR(40) NOT NULL,
@@ -138,6 +155,7 @@ CREATE TABLE Shipments (
     UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_Shipments_Orders FOREIGN KEY (OrderId) REFERENCES Orders (OrderId),
     CONSTRAINT FK_Shipments_Carriers FOREIGN KEY (CarrierId) REFERENCES Carriers (CarrierId),
+    CONSTRAINT FK_Shipments_Customers FOREIGN KEY (CustomerId) REFERENCES Customers (CustomerId),
     CONSTRAINT FK_Shipments_CustomerTypes FOREIGN KEY (CustomerTypeId) REFERENCES CustomerTypes (CustomerTypeId),
     CONSTRAINT UQ_Shipments_Tracking UNIQUE (TrackingNumber)
 );

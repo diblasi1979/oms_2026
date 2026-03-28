@@ -102,20 +102,25 @@ public sealed class ShipmentPricingService
             throw new InvalidOperationException("La cotización requiere datos válidos.");
         }
 
-        return QuoteAsync(request.CustomerTypeId, request.CarrierId, request.DestinationPostalCode, request.DeclaredValue, request.IncludeInsurance, cancellationToken);
+        if (request.CustomerId == Guid.Empty)
+        {
+            throw new InvalidOperationException("La cotización requiere un cliente válido.");
+        }
+
+        return QuoteByCustomerAsync(request.CustomerId, request.CarrierId, request.DestinationPostalCode, request.DeclaredValue, request.IncludeInsurance, cancellationToken);
     }
 
-    public Task<ShipmentPricingQuoteResponse> QuoteAsync(Guid customerTypeId, Guid carrierId, string destinationPostalCode, bool includeInsurance, CancellationToken cancellationToken = default)
+    public Task<ShipmentPricingQuoteResponse> QuoteByCustomerAsync(Guid customerId, Guid carrierId, string destinationPostalCode, bool includeInsurance, CancellationToken cancellationToken = default)
     {
-        return QuoteAsync(customerTypeId, carrierId, destinationPostalCode, 0m, includeInsurance, cancellationToken);
+        return QuoteByCustomerAsync(customerId, carrierId, destinationPostalCode, 0m, includeInsurance, cancellationToken);
     }
 
-    public async Task<ShipmentPricingQuoteResponse> QuoteAsync(Guid customerTypeId, Guid carrierId, string destinationPostalCode, decimal declaredValue, bool includeInsurance, CancellationToken cancellationToken = default)
+    public async Task<ShipmentPricingQuoteResponse> QuoteByCustomerAsync(Guid customerId, Guid carrierId, string destinationPostalCode, decimal declaredValue, bool includeInsurance, CancellationToken cancellationToken = default)
     {
         var normalizedPostalCode = NormalizePostalCode(destinationPostalCode);
-        if (customerTypeId == Guid.Empty || carrierId == Guid.Empty || string.IsNullOrWhiteSpace(normalizedPostalCode))
+        if (customerId == Guid.Empty || carrierId == Guid.Empty || string.IsNullOrWhiteSpace(normalizedPostalCode))
         {
-            throw new InvalidOperationException("La cotización requiere tipo de cliente, carrier y código postal válidos.");
+            throw new InvalidOperationException("La cotización requiere cliente, carrier y código postal válidos.");
         }
 
         if (declaredValue < 0)
@@ -127,14 +132,51 @@ public sealed class ShipmentPricingService
             .AsNoTracking()
             .SingleOrDefaultAsync(current => current.CarrierId == carrierId, cancellationToken)
             ?? throw new InvalidOperationException("El carrier informado no existe.");
-        var customerType = await _dbContext.CustomerTypes
+        var customer = await _dbContext.Customers
             .AsNoTracking()
-            .SingleOrDefaultAsync(current => current.CustomerTypeId == customerTypeId, cancellationToken)
-            ?? throw new InvalidOperationException("El tipo de cliente informado no existe.");
+            .Include(current => current.CustomerType)
+            .SingleOrDefaultAsync(current => current.CustomerId == customerId, cancellationToken)
+            ?? throw new InvalidOperationException("El cliente informado no existe.");
 
-        if (string.IsNullOrWhiteSpace(customerType.AssignedPriceListName))
+        if (!customer.IsActive)
         {
-            throw new InvalidOperationException("El tipo de cliente no tiene una lista de precios asignada.");
+            throw new InvalidOperationException("El cliente informado está inactivo.");
+        }
+
+        return await BuildQuoteAsync(
+            customer.CustomerId,
+            customer.Name,
+            customer.CustomerTypeId,
+            customer.CustomerType.Code,
+            customer.CustomerType.Name,
+            customer.AssignedPriceListName,
+            customer.InsuranceRatePercentage,
+            carrier,
+            normalizedPostalCode,
+            declaredValue,
+            includeInsurance,
+            cancellationToken);
+    }
+
+    private async Task<ShipmentPricingQuoteResponse> BuildQuoteAsync(
+        Guid? customerId,
+        string customerName,
+        Guid customerTypeId,
+        string customerTypeCode,
+        string customerTypeName,
+        string assignedPriceListName,
+        decimal insuranceRatePercentage,
+        CarrierEntity carrier,
+        string normalizedPostalCode,
+        decimal declaredValue,
+        bool includeInsurance,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(assignedPriceListName))
+        {
+            throw new InvalidOperationException(customerId.HasValue
+                ? "El cliente no tiene una lista de precios asignada."
+                : "El tipo de cliente no tiene una lista de precios asignada.");
         }
 
         if (includeInsurance && !carrier.InsuranceSupported)
@@ -154,25 +196,27 @@ public sealed class ShipmentPricingService
 
         var matchedPrice = await _dbContext.PostalCodePriceLists
             .AsNoTracking()
-            .SingleOrDefaultAsync(current => current.ListName == customerType.AssignedPriceListName && current.PostalCode == normalizedPostalCode, cancellationToken)
+            .SingleOrDefaultAsync(current => current.ListName == assignedPriceListName && current.PostalCode == normalizedPostalCode, cancellationToken)
             ?? throw new InvalidOperationException("No existe una tarifa para la lista asignada y el código postal informado.");
 
         var baseShippingCost = matchedPrice.Value;
         var insuranceCost = includeInsurance
-            ? decimal.Round(declaredValue * customerType.InsuranceRatePercentage / 100m, 2, MidpointRounding.AwayFromZero)
+            ? decimal.Round(declaredValue * insuranceRatePercentage / 100m, 2, MidpointRounding.AwayFromZero)
             : 0m;
 
         return new ShipmentPricingQuoteResponse
         {
+            CustomerId = customerId,
+            CustomerName = customerName,
             CustomerTypeId = customerTypeId,
-            CustomerTypeCode = customerType.Code,
-            CustomerTypeName = customerType.Name,
-            CarrierId = carrierId,
+            CustomerTypeCode = customerTypeCode,
+            CustomerTypeName = customerTypeName,
+            CarrierId = carrier.CarrierId,
             CarrierName = carrier.Name,
             DestinationPostalCode = normalizedPostalCode,
-            AssignedPriceListName = customerType.AssignedPriceListName,
+            AssignedPriceListName = assignedPriceListName,
             MatchedZone = matchedPrice.Zone,
-            InsuranceRatePercentage = customerType.InsuranceRatePercentage,
+            InsuranceRatePercentage = insuranceRatePercentage,
             DeclaredValue = declaredValue,
             BaseShippingCost = baseShippingCost,
             InsuranceCost = insuranceCost,

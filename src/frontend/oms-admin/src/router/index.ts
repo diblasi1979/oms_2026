@@ -6,6 +6,7 @@ import OrderDetailView from '../views/OrderDetailView.vue'
 import ShippingPricingSettingsView from '../views/ShippingPricingSettingsView.vue'
 import ShipmentCreateView from '../views/ShipmentCreateView.vue'
 import CarriersSettingsView from '../views/CarriersSettingsView.vue'
+import CustomersSettingsView from '../views/CustomersSettingsView.vue'
 import CustomerTypesSettingsView from '../views/CustomerTypesSettingsView.vue'
 import PostalCodesSettingsView from '../views/PostalCodesSettingsView.vue'
 import PostalCodePriceListsSettingsView from '../views/PostalCodePriceListsSettingsView.vue'
@@ -50,6 +51,12 @@ const router = createRouter({
       path: '/settings/carriers',
       name: 'carriers-settings',
       component: CarriersSettingsView,
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: '/settings/customers',
+      name: 'customers-settings',
+      component: CustomersSettingsView,
       meta: { requiresAdmin: true },
     },
     {

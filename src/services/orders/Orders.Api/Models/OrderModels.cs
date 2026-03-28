@@ -19,6 +19,7 @@ public enum OrderOrigin
 public sealed class CreateOrderRequest
 {
     public string Customer { get; set; } = string.Empty;
+    public Guid? CustomerId { get; set; }
     public Guid CustomerTypeId { get; set; }
     public string DestinationCity { get; set; } = string.Empty;
     public string DestinationState { get; set; } = string.Empty;
@@ -39,6 +40,7 @@ public sealed class CreateOrderItemRequest
 public sealed class OrderSummaryResponse
 {
     public Guid Id { get; init; }
+    public Guid CustomerId { get; init; }
     public string Customer { get; init; } = string.Empty;
     public Guid CustomerTypeId { get; init; }
     public string CustomerTypeCode { get; init; } = string.Empty;
@@ -54,6 +56,7 @@ public sealed class OrderSummaryResponse
 public sealed class OrderDetailResponse
 {
     public Guid Id { get; init; }
+    public Guid CustomerId { get; init; }
     public string Customer { get; init; } = string.Empty;
     public Guid CustomerTypeId { get; init; }
     public string CustomerTypeCode { get; init; } = string.Empty;
@@ -107,8 +110,6 @@ public sealed class CustomerTypeResponse
     public string Code { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
-    public string AssignedPriceListName { get; init; } = string.Empty;
-    public decimal InsuranceRatePercentage { get; init; }
     public bool IsActive { get; init; }
 }
 
@@ -117,6 +118,27 @@ public sealed class UpsertCustomerTypeRequest
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+}
+
+public sealed class CustomerResponse
+{
+    public Guid Id { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public Guid CustomerTypeId { get; init; }
+    public string CustomerTypeCode { get; init; } = string.Empty;
+    public string CustomerTypeName { get; init; } = string.Empty;
+    public string AssignedPriceListName { get; init; } = string.Empty;
+    public decimal InsuranceRatePercentage { get; init; }
+    public bool IsActive { get; init; }
+}
+
+public sealed class UpsertCustomerRequest
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public Guid CustomerTypeId { get; set; }
     public string AssignedPriceListName { get; set; } = string.Empty;
     public decimal InsuranceRatePercentage { get; set; }
     public bool IsActive { get; set; } = true;

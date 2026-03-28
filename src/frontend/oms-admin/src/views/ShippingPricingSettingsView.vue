@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchCustomerTypes } from '../services/ordersApi'
+import { fetchCustomers } from '../services/ordersApi'
 import { calculateShipmentQuote, fetchCarriers, fetchPostalCodePriceLists } from '../services/shippingApi'
 import { useAuthStore } from '../stores/auth'
-import type { CarrierRecord, CustomerTypeRecord, PostalCodePriceListRecord, ShipmentPricingQuote } from '../types/oms'
+import type { CarrierRecord, CustomerRecord, PostalCodePriceListRecord, ShipmentPricingQuote } from '../types/oms'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
 const priceLists = ref<PostalCodePriceListRecord[]>([])
 const carriers = ref<CarrierRecord[]>([])
-const customerTypes = ref<CustomerTypeRecord[]>([])
-const quoteCustomerTypeId = ref('')
+const customers = ref<CustomerRecord[]>([])
+const quoteCustomerId = ref('')
 const quoteCarrierId = ref('')
 const quotePostalCode = ref('1000')
 const quoteDeclaredValue = ref(1000)
@@ -27,11 +27,11 @@ async function loadSettings() {
   errorMessage.value = ''
 
   try {
-    customerTypes.value = await fetchCustomerTypes(authStore.token, true)
+    customers.value = await fetchCustomers(authStore.token, true)
     carriers.value = await fetchCarriers(authStore.token, true)
     priceLists.value = await fetchPostalCodePriceLists(authStore.token)
-    if (!quoteCustomerTypeId.value && customerTypes.value.length > 0) {
-      quoteCustomerTypeId.value = customerTypes.value[0].id
+    if (!quoteCustomerId.value && customers.value.length > 0) {
+      quoteCustomerId.value = customers.value[0].id
     }
     if (!quoteCarrierId.value && carriers.value.length > 0) {
       quoteCarrierId.value = carriers.value[0].id
@@ -48,12 +48,12 @@ async function loadQuote() {
   isQuoting.value = true
 
   try {
-    if (!quoteCustomerTypeId.value || !quoteCarrierId.value) {
+    if (!quoteCustomerId.value || !quoteCarrierId.value) {
       quote.value = null
       return
     }
 
-    quote.value = await calculateShipmentQuote(authStore.token, quoteCustomerTypeId.value, quoteCarrierId.value, quotePostalCode.value, quoteDeclaredValue.value, includeInsurance.value)
+    quote.value = await calculateShipmentQuote(authStore.token, quoteCustomerId.value, quoteCarrierId.value, quotePostalCode.value, quoteDeclaredValue.value, includeInsurance.value)
   } finally {
     isQuoting.value = false
   }
@@ -73,7 +73,7 @@ onMounted(loadSettings)
       <div class="detail-hero-copy">
         <p class="eyebrow">Administración logística</p>
         <h1>Tarifas de envío y seguro</h1>
-        <p class="lede">Simulá la cotización final usando la lista asignada al tipo de cliente, el código postal exacto y el porcentaje de seguro comercial.</p>
+        <p class="lede">Simulá la cotización final usando la lista asignada al cliente, el código postal exacto y el porcentaje de seguro acordado para esa cuenta.</p>
       </div>
       <div class="detail-hero-side">
         <div class="detail-kicker">
@@ -100,8 +100,8 @@ onMounted(loadSettings)
                 <strong>{{ new Set(priceLists.map((priceList) => priceList.listName)).size }}</strong>
               </div>
               <div>
-                <span>Seguros por cliente</span>
-                <strong>Desde Tipos de cliente</strong>
+                <span>Clientes disponibles</span>
+                <strong>{{ customers.length }}</strong>
               </div>
             </div>
           </template>
@@ -112,8 +112,8 @@ onMounted(loadSettings)
           <template #content>
             <div class="settings-form-grid">
               <label>
-                <span>Tipo de cliente</span>
-                <Dropdown v-model="quoteCustomerTypeId" :options="customerTypes.map((customerType) => ({ label: `${customerType.name} · ${customerType.code}`, value: customerType.id }))" option-label="label" option-value="value" placeholder="Seleccionar tipo" />
+                <span>Cliente</span>
+                <Dropdown v-model="quoteCustomerId" :options="customers.map((customer) => ({ label: `${customer.name} · ${customer.customerTypeName}`, value: customer.id }))" option-label="label" option-value="value" placeholder="Seleccionar cliente" />
               </label>
               <label>
                 <span>Carrier</span>
@@ -143,7 +143,7 @@ onMounted(loadSettings)
               </div>
               <div>
                 <span>Cliente / carrier</span>
-                <strong>{{ quote.customerTypeName }} · {{ quote.carrierName }}</strong>
+                <strong>{{ quote.customerName }} · {{ quote.carrierName }}</strong>
               </div>
               <div>
                 <span>Zona</span>

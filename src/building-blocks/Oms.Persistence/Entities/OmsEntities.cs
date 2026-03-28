@@ -18,6 +18,7 @@ public sealed class OrderEntity
 {
     public Guid OrderId { get; set; }
     public string Customer { get; set; } = string.Empty;
+    public Guid CustomerId { get; set; }
     public Guid CustomerTypeId { get; set; }
     public string Status { get; set; } = string.Empty;
     public string Origin { get; set; } = string.Empty;
@@ -31,10 +32,26 @@ public sealed class OrderEntity
     public string? ShipmentTrackingNumber { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public CustomerEntity CustomerRecord { get; set; } = null!;
     public CustomerTypeEntity CustomerType { get; set; } = null!;
     public WarehouseEntity? AssignedWarehouse { get; set; }
     public ICollection<OrderItemEntity> Items { get; set; } = new List<OrderItemEntity>();
     public ICollection<OrderLogEntity> Logs { get; set; } = new List<OrderLogEntity>();
+    public ICollection<ShipmentEntity> Shipments { get; set; } = new List<ShipmentEntity>();
+}
+
+public sealed class CustomerEntity
+{
+    public Guid CustomerId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public Guid CustomerTypeId { get; set; }
+    public string AssignedPriceListName { get; set; } = string.Empty;
+    public decimal InsuranceRatePercentage { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public CustomerTypeEntity CustomerType { get; set; } = null!;
+    public ICollection<OrderEntity> Orders { get; set; } = new List<OrderEntity>();
     public ICollection<ShipmentEntity> Shipments { get; set; } = new List<ShipmentEntity>();
 }
 
@@ -76,6 +93,7 @@ public sealed class ShipmentEntity
     public Guid ShipmentId { get; set; }
     public Guid OrderId { get; set; }
     public Guid? CarrierId { get; set; }
+    public Guid CustomerId { get; set; }
     public Guid CustomerTypeId { get; set; }
     public string RecipientName { get; set; } = string.Empty;
     public string RecipientPhone { get; set; } = string.Empty;
@@ -97,6 +115,7 @@ public sealed class ShipmentEntity
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public OrderEntity Order { get; set; } = null!;
+    public CustomerEntity CustomerRecord { get; set; } = null!;
     public CarrierEntity? CarrierSettings { get; set; }
     public CustomerTypeEntity CustomerType { get; set; } = null!;
     public ICollection<ShipmentEventEntity> Events { get; set; } = new List<ShipmentEventEntity>();

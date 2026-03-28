@@ -100,6 +100,7 @@ onMounted(loadOrders)
           <div class="header-actions">
             <Button label="Nuevo envío" icon="pi pi-send" @click="router.push({ name: 'shipment-create' })" />
             <Button v-if="authStore.role === 'Admin'" label="Carriers" severity="secondary" outlined icon="pi pi-truck" @click="router.push({ name: 'carriers-settings' })" />
+            <Button v-if="authStore.role === 'Admin'" label="Clientes" severity="secondary" outlined icon="pi pi-building" @click="router.push({ name: 'customers-settings' })" />
             <Button v-if="authStore.role === 'Admin'" label="Tipos cliente" severity="secondary" outlined icon="pi pi-users" @click="router.push({ name: 'customer-types-settings' })" />
             <Button v-if="authStore.role === 'Admin'" label="Códigos postales" severity="secondary" outlined icon="pi pi-map-marker" @click="router.push({ name: 'postal-codes-settings' })" />
             <Button v-if="authStore.role === 'Admin'" label="Listas de precios" severity="secondary" outlined icon="pi pi-list" @click="router.push({ name: 'postal-code-price-lists-settings' })" />

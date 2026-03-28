@@ -12,6 +12,7 @@ var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? ne
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddDbContext<OmsDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("OmsDb")));
+builder.Services.AddScoped<CustomersService>();
 builder.Services.AddScoped<CustomerTypesService>();
 builder.Services.AddScoped<OrdersService>();
 builder.Services.AddControllers();

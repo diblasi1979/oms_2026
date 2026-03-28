@@ -59,7 +59,15 @@ const inheritedCustomerTypeLabel = computed(() => {
   return `${order.value.customerTypeName} · ${order.value.customerTypeCode}`
 })
 
-const canQuote = computed(() => Boolean(order.value?.destinationPostalCode && order.value?.customerTypeId && form.carrierId))
+const inheritedCustomerLabel = computed(() => {
+  if (!order.value) {
+    return 'Se completa al cargar la orden'
+  }
+
+  return order.value.customer
+})
+
+const canQuote = computed(() => Boolean(order.value?.destinationPostalCode && order.value?.customerId && form.carrierId))
 const canSubmit = computed(() => Boolean(form.orderId && form.customer && form.carrierId && form.recipientName && form.recipientPhone && form.destinationAddress && quote.value))
 
 async function loadCarriers() {
@@ -116,7 +124,7 @@ async function loadQuote() {
   errorMessage.value = ''
 
   try {
-    quote.value = await calculateShipmentQuote(authStore.token, order.value.customerTypeId, form.carrierId, order.value.destinationPostalCode, order.value.total, form.includeInsurance)
+    quote.value = await calculateShipmentQuote(authStore.token, order.value.customerId, form.carrierId, order.value.destinationPostalCode, order.value.total, form.includeInsurance)
   } catch (error) {
     quote.value = null
     errorMessage.value = error instanceof Error ? error.message : 'No fue posible calcular la cotización del envío.'
@@ -225,8 +233,8 @@ onMounted(loadCarriers)
         <template #content>
           <div class="settings-form-grid shipment-form-grid-tight">
             <label>
-              <span>Tipo de cliente heredado</span>
-              <InputText :model-value="inheritedCustomerTypeLabel" disabled />
+              <span>Cliente heredado</span>
+              <InputText :model-value="inheritedCustomerLabel" disabled />
             </label>
             <label>
               <span>Carrier</span>
@@ -249,7 +257,7 @@ onMounted(loadCarriers)
             </div>
               <div>
                 <span>Cliente / carrier</span>
-                <strong>{{ quote.customerTypeName }} · {{ quote.carrierName }}</strong>
+                <strong>{{ quote.customerName }} · {{ quote.carrierName }}</strong>
               </div>
             <div>
               <span>Zona</span>

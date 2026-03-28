@@ -45,9 +45,9 @@ public sealed class ShipmentsService
 
     public async Task<ShipmentResponse> CreateAsync(CreateShipmentRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.OrderId == Guid.Empty || request.CarrierId == Guid.Empty || string.IsNullOrWhiteSpace(request.Customer) || string.IsNullOrWhiteSpace(request.RecipientName) || string.IsNullOrWhiteSpace(request.RecipientPhone))
+        if (request.OrderId == Guid.Empty || request.CarrierId == Guid.Empty || string.IsNullOrWhiteSpace(request.RecipientName) || string.IsNullOrWhiteSpace(request.RecipientPhone))
         {
-            throw new InvalidOperationException("El envío requiere orderId, cliente, destinatario y un carrier válido.");
+            throw new InvalidOperationException("El envío requiere orderId, destinatario y un carrier válido.");
         }
 
         var order = await _dbContext.Orders
@@ -70,13 +70,14 @@ public sealed class ShipmentsService
             throw new InvalidOperationException("El carrier seleccionado no admite seguro.");
         }
 
-        var pricingQuote = await _shipmentPricingService.QuoteAsync(order.CustomerTypeId, carrier.CarrierId, order.DestinationPostalCode, order.Total, request.IncludeInsurance, cancellationToken);
+        var pricingQuote = await _shipmentPricingService.QuoteByCustomerAsync(order.CustomerId, carrier.CarrierId, order.DestinationPostalCode, order.Total, request.IncludeInsurance, cancellationToken);
 
         var shipment = new ShipmentEntity
         {
             ShipmentId = Guid.NewGuid(),
             OrderId = request.OrderId,
             CarrierId = carrier.CarrierId,
+            CustomerId = order.CustomerId,
             CustomerTypeId = order.CustomerTypeId,
             RecipientName = request.RecipientName.Trim(),
             RecipientPhone = request.RecipientPhone.Trim(),
@@ -204,6 +205,7 @@ public sealed class ShipmentsService
         Id = shipment.ShipmentId,
         OrderId = shipment.OrderId,
         CarrierId = shipment.CarrierId,
+        CustomerId = shipment.CustomerId,
         Customer = shipment.Order.Customer,
         CustomerTypeId = shipment.CustomerTypeId,
         CustomerTypeCode = shipment.CustomerType.Code,
