@@ -1,4 +1,4 @@
-import type { AuthSession, CarrierRecord, CreateShipmentPayload, CustomerTypeRecord, OrderDetail, OrderSummary, PostalCodeRecord, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+import type { AuthSession, CarrierRecord, CreateShipmentPayload, CustomerTypeRecord, OrderDetail, OrderSummary, PostalCodePriceListRecord, PostalCodeRecord, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
 
 const mockCustomerTypes: CustomerTypeRecord[] = [
   {
@@ -106,6 +106,17 @@ const mockPostalCodes: PostalCodeRecord[] = [
     isActive: true,
     zone: 'Centro',
   },
+]
+
+const mockPostalCodePriceLists: PostalCodePriceListRecord[] = [
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000001', listName: 'Lista General', postalCode: '1000', zone: 'AMBA', value: 9.5 },
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000002', listName: 'Lista General', postalCode: '1900', zone: 'AMBA', value: 11.2 },
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000003', listName: 'Lista General', postalCode: '2000', zone: 'Litoral', value: 13.2 },
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000004', listName: 'Lista General', postalCode: '5500', zone: 'Centro', value: 15.75 },
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000005', listName: 'Lista Premium', postalCode: '1000', zone: 'AMBA', value: 8.9 },
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000006', listName: 'Lista Premium', postalCode: '1900', zone: 'AMBA', value: 10.5 },
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000007', listName: 'Lista Premium', postalCode: '2000', zone: 'Litoral', value: 12 },
+  { id: 'c6dbfa0b-35e7-48f2-bf80-000000000008', listName: 'Lista Premium', postalCode: '5500', zone: 'Centro', value: 14.25 },
 ]
 
 const mockOrders: OrderDetail[] = [
@@ -217,16 +228,7 @@ export function getMockLabel(orderId: string): ShippingLabel {
 
 export function getMockShipmentPricingSettings(): ShipmentPricingSettings {
   return {
-    priceLists: [
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000001', listName: 'Lista General', postalCode: '1000', zone: 'AMBA', value: 9.5 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000002', listName: 'Lista General', postalCode: '1900', zone: 'AMBA', value: 11.2 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000003', listName: 'Lista General', postalCode: '2000', zone: 'Litoral', value: 13.2 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000004', listName: 'Lista General', postalCode: '5500', zone: 'Centro', value: 15.75 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000005', listName: 'Lista Premium', postalCode: '1000', zone: 'AMBA', value: 8.9 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000006', listName: 'Lista Premium', postalCode: '1900', zone: 'AMBA', value: 10.5 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000007', listName: 'Lista Premium', postalCode: '2000', zone: 'Litoral', value: 12 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000008', listName: 'Lista Premium', postalCode: '5500', zone: 'Centro', value: 14.25 },
-    ],
+    priceLists: getMockPostalCodePriceLists(),
   }
 }
 
@@ -252,6 +254,14 @@ export function getMockPostalCodes(includeInactive = false): PostalCodeRecord[] 
 
 export function getMockPostalCodeById(postalCodeId: string): PostalCodeRecord | undefined {
   return mockPostalCodes.find((postalCode) => postalCode.id === postalCodeId)
+}
+
+export function getMockPostalCodePriceLists(): PostalCodePriceListRecord[] {
+  return [...mockPostalCodePriceLists]
+}
+
+export function getMockPostalCodePriceListById(postalCodePriceListId: string): PostalCodePriceListRecord | undefined {
+  return mockPostalCodePriceLists.find((priceList) => priceList.id === postalCodePriceListId)
 }
 
 export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: string, destinationPostalCode: string, declaredValue: number, includeInsurance = true): ShipmentPricingQuote {

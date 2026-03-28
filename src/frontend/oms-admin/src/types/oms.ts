@@ -163,6 +163,12 @@ export interface PostalCodePriceListRecord {
   value: number
 }
 
+export interface PostalCodePriceListUpsertPayload {
+  listName: string
+  postalCode: string
+  value: number
+}
+
 export interface ShipmentPricingSettings {
   priceLists: PostalCodePriceListRecord[]
 }

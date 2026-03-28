@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { getMockCreatedShipment, getMockLabel, getMockShipmentPricingQuote, getMockShipmentPricingSettings } from './mockData'
-import type { CarrierRecord, CarrierUpsertPayload, CreateShipmentPayload, PostalCodeRecord, PostalCodeUpsertPayload, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
-import { getMockCarrierById, getMockCarriers, getMockPostalCodeById, getMockPostalCodes } from './mockData'
+import type { CarrierRecord, CarrierUpsertPayload, CreateShipmentPayload, PostalCodePriceListRecord, PostalCodePriceListUpsertPayload, PostalCodeRecord, PostalCodeUpsertPayload, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+import { getMockCarrierById, getMockCarriers, getMockPostalCodeById, getMockPostalCodePriceListById, getMockPostalCodePriceLists, getMockPostalCodes } from './mockData'
 
 const SHIPMENTS_API_BASE_URL = import.meta.env.VITE_SHIPMENTS_API_BASE_URL ?? 'https://localhost:7003'
 
@@ -140,6 +140,58 @@ export async function updatePostalCode(token: string, postalCodeId: string, payl
       ...(getMockPostalCodeById(postalCodeId) ?? { id: postalCodeId }),
       ...payload,
     } as PostalCodeRecord
+  }
+}
+
+export async function fetchPostalCodePriceLists(token: string): Promise<PostalCodePriceListRecord[]> {
+  try {
+    const response = await axios.get<PostalCodePriceListRecord[]>(`${SHIPMENTS_API_BASE_URL}/api/postal-code-price-lists`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return getMockPostalCodePriceLists()
+  }
+}
+
+export async function createPostalCodePriceList(token: string, payload: PostalCodePriceListUpsertPayload): Promise<PostalCodePriceListRecord> {
+  try {
+    const response = await axios.post<PostalCodePriceListRecord>(`${SHIPMENTS_API_BASE_URL}/api/postal-code-price-lists`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return {
+      id: crypto.randomUUID(),
+      ...payload,
+      zone: 'Se resuelve por catálogo',
+    }
+  }
+}
+
+export async function updatePostalCodePriceList(token: string, postalCodePriceListId: string, payload: PostalCodePriceListUpsertPayload): Promise<PostalCodePriceListRecord> {
+  try {
+    const response = await axios.put<PostalCodePriceListRecord>(`${SHIPMENTS_API_BASE_URL}/api/postal-code-price-lists/${postalCodePriceListId}`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return {
+      ...(getMockPostalCodePriceListById(postalCodePriceListId) ?? { id: postalCodePriceListId, zone: 'Se resuelve por catálogo' }),
+      ...payload,
+    } as PostalCodePriceListRecord
   }
 }
 

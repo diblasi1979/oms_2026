@@ -121,6 +121,13 @@ public sealed class UpdatePostalCodePriceListRequest
     public decimal Value { get; set; }
 }
 
+public sealed class UpsertPostalCodePriceListRequest
+{
+    public string ListName { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public decimal Value { get; set; }
+}
+
 public sealed class ShipmentPricingQuoteRequest
 {
     public Guid CustomerTypeId { get; set; }

@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchCustomerTypes } from '../services/ordersApi'
-import { calculateShipmentQuote, fetchCarriers, fetchShipmentPricingSettings, updateShipmentPricingSettings } from '../services/shippingApi'
+import { calculateShipmentQuote, fetchCarriers, fetchPostalCodePriceLists } from '../services/shippingApi'
 import { useAuthStore } from '../stores/auth'
-import type { CarrierRecord, CustomerTypeRecord, ShipmentPricingQuote, ShipmentPricingSettings } from '../types/oms'
+import type { CarrierRecord, CustomerTypeRecord, PostalCodePriceListRecord, ShipmentPricingQuote } from '../types/oms'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-const settings = ref<ShipmentPricingSettings>({
-  priceLists: [],
-})
+const priceLists = ref<PostalCodePriceListRecord[]>([])
 const carriers = ref<CarrierRecord[]>([])
 const customerTypes = ref<CustomerTypeRecord[]>([])
 const quoteCustomerTypeId = ref('')
@@ -21,15 +19,8 @@ const quoteDeclaredValue = ref(1000)
 const includeInsurance = ref(true)
 const quote = ref<ShipmentPricingQuote | null>(null)
 const isLoading = ref(false)
-const isSaving = ref(false)
 const isQuoting = ref(false)
 const errorMessage = ref('')
-const successMessage = ref('')
-
-const customerTypeOptions = computed(() => customerTypes.value.map((customerType) => ({
-  label: `${customerType.name} · ${customerType.code}`,
-  value: customerType.id,
-})))
 
 async function loadSettings() {
   isLoading.value = true
@@ -38,7 +29,7 @@ async function loadSettings() {
   try {
     customerTypes.value = await fetchCustomerTypes(authStore.token, true)
     carriers.value = await fetchCarriers(authStore.token, true)
-    settings.value = await fetchShipmentPricingSettings(authStore.token)
+    priceLists.value = await fetchPostalCodePriceLists(authStore.token)
     if (!quoteCustomerTypeId.value && customerTypes.value.length > 0) {
       quoteCustomerTypeId.value = customerTypes.value[0].id
     }
@@ -50,35 +41,6 @@ async function loadSettings() {
     errorMessage.value = error instanceof Error ? error.message : 'No fue posible cargar la configuración de tarifas.'
   } finally {
     isLoading.value = false
-  }
-}
-
-function addRule() {
-  settings.value.priceLists.push({
-    listName: customerTypes.value[0]?.assignedPriceListName ?? '',
-    postalCode: '',
-    zone: '',
-    value: 0,
-  })
-}
-
-function removeRule(index: number) {
-  settings.value.priceLists.splice(index, 1)
-}
-
-async function saveSettings() {
-  isSaving.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
-
-  try {
-    settings.value = await updateShipmentPricingSettings(authStore.token, settings.value)
-    successMessage.value = 'Las tarifas y el seguro se actualizaron correctamente.'
-    await loadQuote()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'No fue posible guardar la configuración.'
-  } finally {
-    isSaving.value = false
   }
 }
 
@@ -104,14 +66,14 @@ onMounted(loadSettings)
   <section class="detail-page settings-page">
     <div class="detail-toolbar">
       <Button label="Volver" icon="pi pi-arrow-left" text @click="router.push({ name: 'orders' })" />
-      <Button label="Guardar configuración" icon="pi pi-save" :loading="isSaving" @click="saveSettings" />
+      <Button label="Ir a listas" icon="pi pi-list" severity="secondary" outlined @click="router.push({ name: 'postal-code-price-lists-settings' })" />
     </div>
 
     <header class="detail-header">
       <div class="detail-hero-copy">
         <p class="eyebrow">Administración logística</p>
         <h1>Tarifas de envío y seguro</h1>
-        <p class="lede">Administrá las listas por código postal exacto y simulá la tarifa final usando la lista asignada al tipo de cliente y su porcentaje de seguro.</p>
+        <p class="lede">Simulá la cotización final usando la lista asignada al tipo de cliente, el código postal exacto y el porcentaje de seguro comercial.</p>
       </div>
       <div class="detail-hero-side">
         <div class="detail-kicker">
@@ -124,20 +86,18 @@ onMounted(loadSettings)
     <ProgressSpinner v-if="isLoading" stroke-width="4" class="center-spinner" />
     <template v-else>
       <Message v-if="errorMessage" severity="error" :closable="false">{{ errorMessage }}</Message>
-      <Message v-if="successMessage" severity="success" :closable="false">{{ successMessage }}</Message>
-
       <div class="detail-grid">
         <Card class="panel-card">
-          <template #title>Regla vigente</template>
+          <template #title>Resumen tarifario</template>
           <template #content>
             <div class="quote-card">
               <div>
                 <span>Tarifas configuradas</span>
-                <strong>{{ settings.priceLists.length }}</strong>
+                <strong>{{ priceLists.length }}</strong>
               </div>
               <div>
                 <span>Listas únicas</span>
-                <strong>{{ new Set(settings.priceLists.map((priceList) => priceList.listName)).size }}</strong>
+                <strong>{{ new Set(priceLists.map((priceList) => priceList.listName)).size }}</strong>
               </div>
               <div>
                 <span>Seguros por cliente</span>
@@ -153,7 +113,7 @@ onMounted(loadSettings)
             <div class="settings-form-grid">
               <label>
                 <span>Tipo de cliente</span>
-                <Dropdown v-model="quoteCustomerTypeId" :options="customerTypeOptions" option-label="label" option-value="value" placeholder="Seleccionar tipo" />
+                <Dropdown v-model="quoteCustomerTypeId" :options="customerTypes.map((customerType) => ({ label: `${customerType.name} · ${customerType.code}`, value: customerType.id }))" option-label="label" option-value="value" placeholder="Seleccionar tipo" />
               </label>
               <label>
                 <span>Carrier</span>
@@ -206,48 +166,7 @@ onMounted(loadSettings)
                 <strong>{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(quote.totalShippingCost) }}</strong>
               </div>
             </div>
-          </template>
-        </Card>
-
-        <Card class="panel-card detail-span-2">
-          <template #title>Tarifas por lista y código postal</template>
-          <template #content>
-            <div class="settings-actions-row">
-              <Button label="Agregar regla" icon="pi pi-plus" @click="addRule" />
-            </div>
-
-            <div class="rules-table-wrap">
-              <table class="rules-table">
-                <thead>
-                  <tr>
-                    <th>Lista</th>
-                    <th>Código postal</th>
-                    <th>Zona</th>
-                    <th>Tarifa</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(rule, index) in settings.priceLists" :key="rule.id ?? `new-${index}`">
-                    <td>
-                      <input v-model="rule.listName" class="p-inputtext" type="text" placeholder="Lista General" />
-                    </td>
-                    <td>
-                      <input v-model="rule.postalCode" class="p-inputtext" type="text" placeholder="1000" />
-                    </td>
-                    <td>
-                      <InputText :model-value="rule.zone || 'Se completa al guardar'" disabled />
-                    </td>
-                    <td>
-                      <input v-model.number="rule.value" class="p-inputtext" type="number" min="0" step="0.01" />
-                    </td>
-                    <td>
-                      <Button label="Quitar" severity="secondary" outlined icon="pi pi-trash" @click="removeRule(index)" />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <p v-else class="empty-state-copy">Indicá cliente, carrier, código postal y valor declarado para simular.</p>
           </template>
         </Card>
       </div>

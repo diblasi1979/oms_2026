@@ -8,6 +8,7 @@ import ShipmentCreateView from '../views/ShipmentCreateView.vue'
 import CarriersSettingsView from '../views/CarriersSettingsView.vue'
 import CustomerTypesSettingsView from '../views/CustomerTypesSettingsView.vue'
 import PostalCodesSettingsView from '../views/PostalCodesSettingsView.vue'
+import PostalCodePriceListsSettingsView from '../views/PostalCodePriceListsSettingsView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
@@ -61,6 +62,12 @@ const router = createRouter({
       path: '/settings/postal-codes',
       name: 'postal-codes-settings',
       component: PostalCodesSettingsView,
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: '/settings/postal-code-price-lists',
+      name: 'postal-code-price-lists-settings',
+      component: PostalCodePriceListsSettingsView,
       meta: { requiresAdmin: true },
     },
   ],

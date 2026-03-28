@@ -102,7 +102,8 @@ onMounted(loadOrders)
             <Button v-if="authStore.role === 'Admin'" label="Carriers" severity="secondary" outlined icon="pi pi-truck" @click="router.push({ name: 'carriers-settings' })" />
             <Button v-if="authStore.role === 'Admin'" label="Tipos cliente" severity="secondary" outlined icon="pi pi-users" @click="router.push({ name: 'customer-types-settings' })" />
             <Button v-if="authStore.role === 'Admin'" label="Códigos postales" severity="secondary" outlined icon="pi pi-map-marker" @click="router.push({ name: 'postal-codes-settings' })" />
-            <Button v-if="authStore.role === 'Admin'" label="Tarifas" severity="secondary" outlined icon="pi pi-cog" @click="router.push({ name: 'shipping-pricing-settings' })" />
+            <Button v-if="authStore.role === 'Admin'" label="Listas de precios" severity="secondary" outlined icon="pi pi-list" @click="router.push({ name: 'postal-code-price-lists-settings' })" />
+            <Button v-if="authStore.role === 'Admin'" label="Simulador tarifas" severity="secondary" outlined icon="pi pi-calculator" @click="router.push({ name: 'shipping-pricing-settings' })" />
             <Button label="Salir" severity="secondary" outlined icon="pi pi-sign-out" @click="signOut" />
           </div>
         </div>
