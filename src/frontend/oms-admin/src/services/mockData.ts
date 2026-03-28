@@ -1,4 +1,4 @@
-import type { AuthSession, CarrierRecord, CreateShipmentPayload, CustomerTypeRecord, OrderDetail, OrderSummary, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+import type { AuthSession, CarrierRecord, CreateShipmentPayload, CustomerTypeRecord, OrderDetail, OrderSummary, PostalCodeRecord, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
 
 const mockCustomerTypes: CustomerTypeRecord[] = [
   {
@@ -6,6 +6,8 @@ const mockCustomerTypes: CustomerTypeRecord[] = [
     code: 'STANDARD',
     name: 'Standard',
     description: 'Clientes estándar con tarifa general.',
+    assignedPriceListName: 'Lista General',
+    insuranceRatePercentage: 2,
     isActive: true,
   },
   {
@@ -13,6 +15,8 @@ const mockCustomerTypes: CustomerTypeRecord[] = [
     code: 'PREMIUM',
     name: 'Premium',
     description: 'Clientes preferenciales con acuerdos comerciales específicos.',
+    assignedPriceListName: 'Lista Premium',
+    insuranceRatePercentage: 1.5,
     isActive: true,
   },
   {
@@ -20,6 +24,8 @@ const mockCustomerTypes: CustomerTypeRecord[] = [
     code: 'WHOLESALE',
     name: 'Mayorista',
     description: 'Clientes mayoristas o cuentas corporativas de alto volumen.',
+    assignedPriceListName: 'Lista Mayorista',
+    insuranceRatePercentage: 1,
     isActive: true,
   },
 ]
@@ -60,6 +66,45 @@ const mockCarriers: CarrierRecord[] = [
     insuranceSupported: false,
     isActive: true,
     notes: 'Cobertura nacional con costo moderado.',
+  },
+]
+
+const mockPostalCodes: PostalCodeRecord[] = [
+  {
+    id: '8a5ab5d2-f35d-4ef5-9775-000000000001',
+    country: 'Argentina',
+    province: 'Buenos Aires',
+    locality: 'Buenos Aires',
+    postalCode: '1000',
+    isActive: true,
+    zone: 'AMBA',
+  },
+  {
+    id: '8a5ab5d2-f35d-4ef5-9775-000000000004',
+    country: 'Argentina',
+    province: 'Buenos Aires',
+    locality: 'La Plata',
+    postalCode: '1900',
+    isActive: true,
+    zone: 'AMBA',
+  },
+  {
+    id: '8a5ab5d2-f35d-4ef5-9775-000000000003',
+    country: 'Argentina',
+    province: 'Santa Fe',
+    locality: 'Rosario',
+    postalCode: '2000',
+    isActive: true,
+    zone: 'Litoral',
+  },
+  {
+    id: '8a5ab5d2-f35d-4ef5-9775-000000000002',
+    country: 'Argentina',
+    province: 'Mendoza',
+    locality: 'Mendoza',
+    postalCode: '5500',
+    isActive: true,
+    zone: 'Centro',
   },
 ]
 
@@ -172,13 +217,15 @@ export function getMockLabel(orderId: string): ShippingLabel {
 
 export function getMockShipmentPricingSettings(): ShipmentPricingSettings {
   return {
-    defaultBaseCost: 14.5,
-    insuranceFlatCost: 3.25,
-    rules: [
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000001', ruleName: 'STANDARD AMBA Andreani', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001', customerTypeCode: 'STANDARD', customerTypeName: 'Standard', postalCodePrefix: '1', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000001', carrierName: 'Andreani', baseCost: 9.5 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000002', ruleName: 'STANDARD Centro Andreani', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001', customerTypeCode: 'STANDARD', customerTypeName: 'Standard', postalCodePrefix: '5', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000001', carrierName: 'Andreani', baseCost: 15.75 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000003', ruleName: 'STANDARD Litoral Andreani', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000001', customerTypeCode: 'STANDARD', customerTypeName: 'Standard', postalCodePrefix: '2', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000001', carrierName: 'Andreani', baseCost: 13.2 },
-      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000004', ruleName: 'PREMIUM Centro OCA', customerTypeId: '7f3fbc62-b77f-4d2e-9c4c-000000000002', customerTypeCode: 'PREMIUM', customerTypeName: 'Premium', postalCodePrefix: '5', carrierId: '6c1a2f12-0c19-4f23-9fb2-000000000002', carrierName: 'OCA', baseCost: 12.9 },
+    priceLists: [
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000001', listName: 'Lista General', postalCode: '1000', zone: 'AMBA', value: 9.5 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000002', listName: 'Lista General', postalCode: '1900', zone: 'AMBA', value: 11.2 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000003', listName: 'Lista General', postalCode: '2000', zone: 'Litoral', value: 13.2 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000004', listName: 'Lista General', postalCode: '5500', zone: 'Centro', value: 15.75 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000005', listName: 'Lista Premium', postalCode: '1000', zone: 'AMBA', value: 8.9 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000006', listName: 'Lista Premium', postalCode: '1900', zone: 'AMBA', value: 10.5 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000007', listName: 'Lista Premium', postalCode: '2000', zone: 'Litoral', value: 12 },
+      { id: 'c6dbfa0b-35e7-48f2-bf80-000000000008', listName: 'Lista Premium', postalCode: '5500', zone: 'Centro', value: 14.25 },
     ],
   }
 }
@@ -199,18 +246,27 @@ export function getMockCarrierById(carrierId: string): CarrierRecord | undefined
   return mockCarriers.find((carrier) => carrier.id === carrierId)
 }
 
-export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: string, destinationPostalCode: string, includeInsurance = true): ShipmentPricingQuote {
+export function getMockPostalCodes(includeInactive = false): PostalCodeRecord[] {
+  return includeInactive ? [...mockPostalCodes] : mockPostalCodes.filter((postalCode) => postalCode.isActive)
+}
+
+export function getMockPostalCodeById(postalCodeId: string): PostalCodeRecord | undefined {
+  return mockPostalCodes.find((postalCode) => postalCode.id === postalCodeId)
+}
+
+export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: string, destinationPostalCode: string, declaredValue: number, includeInsurance = true): ShipmentPricingQuote {
   const settings = getMockShipmentPricingSettings()
   const normalized = destinationPostalCode.replace(/[^a-z0-9]/gi, '').toUpperCase()
   const customerType = getMockCustomerTypeById(customerTypeId)
   const carrier = getMockCarrierById(carrierId)
-  const match = [...settings.rules]
-    .filter((rule) => rule.customerTypeId === customerTypeId && rule.carrierId === carrierId)
-    .sort((left, right) => right.postalCodePrefix.length - left.postalCodePrefix.length)
-    .find((rule) => normalized.startsWith(rule.postalCodePrefix.toUpperCase()))
+  const match = settings.priceLists.find((priceList) =>
+    priceList.listName === customerType?.assignedPriceListName && priceList.postalCode === normalized,
+  )
 
-  const baseShippingCost = match?.baseCost ?? settings.defaultBaseCost
-  const insuranceCost = includeInsurance ? settings.insuranceFlatCost : 0
+  const baseShippingCost = match?.value ?? 0
+  const insuranceCost = includeInsurance
+    ? Math.round(declaredValue * ((customerType?.insuranceRatePercentage ?? 0) / 100) * 100) / 100
+    : 0
 
   return {
     customerTypeId,
@@ -219,9 +275,10 @@ export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: s
     carrierId,
     carrierName: carrier?.name ?? 'Carrier no definido',
     destinationPostalCode: normalized,
-    matchedRuleName: match?.ruleName ?? null,
-    matchedPostalCodePrefix: match?.postalCodePrefix ?? null,
-    usedDefaultRate: !match,
+    assignedPriceListName: customerType?.assignedPriceListName ?? '',
+    matchedZone: match?.zone ?? '',
+    insuranceRatePercentage: customerType?.insuranceRatePercentage ?? 0,
+    declaredValue,
     baseShippingCost,
     insuranceCost,
     totalShippingCost: baseShippingCost + insuranceCost,
@@ -231,7 +288,7 @@ export function getMockShipmentPricingQuote(customerTypeId: string, carrierId: s
 export function getMockCreatedShipment(payload: CreateShipmentPayload): ShipmentRecord {
   const order = getMockOrderById(payload.orderId)
   const carrier = getMockCarrierById(payload.carrierId)
-  const quote = getMockShipmentPricingQuote(order?.customerTypeId ?? '7f3fbc62-b77f-4d2e-9c4c-000000000001', payload.carrierId, order?.destinationPostalCode ?? '1001', payload.includeInsurance)
+  const quote = getMockShipmentPricingQuote(order?.customerTypeId ?? '7f3fbc62-b77f-4d2e-9c4c-000000000001', payload.carrierId, order?.destinationPostalCode ?? '1000', order?.total ?? 0, payload.includeInsurance)
 
   return {
     id: `mock-shipment-${payload.orderId}`,
@@ -251,9 +308,12 @@ export function getMockCreatedShipment(payload: CreateShipmentPayload): Shipment
     heightCm: payload.heightCm,
     widthCm: payload.widthCm,
     lengthCm: payload.lengthCm,
+    declaredMerchandiseValue: order?.total ?? 0,
     baseShippingCost: quote.baseShippingCost,
     insuranceCost: quote.insuranceCost,
     shippingCost: quote.totalShippingCost,
+    appliedPriceListName: quote.assignedPriceListName,
+    appliedZone: quote.matchedZone,
     destinationPostalCode: order?.destinationPostalCode ?? '1001',
     destinationAddress: payload.destinationAddress,
     events: [

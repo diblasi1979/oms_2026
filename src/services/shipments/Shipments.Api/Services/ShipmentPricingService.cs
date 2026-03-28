@@ -16,81 +16,83 @@ public sealed class ShipmentPricingService
 
     public async Task<ShipmentPricingSettingsResponse> GetSettingsAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await LoadSettingsEntityAsync(cancellationToken);
-        return Map(settings);
+        var priceLists = await _dbContext.PostalCodePriceLists
+            .AsNoTracking()
+            .OrderBy(current => current.ListName)
+            .ThenBy(current => current.PostalCode)
+            .Select(current => new PostalCodePriceListResponse
+            {
+                Id = current.PostalCodePriceListId,
+                ListName = current.ListName,
+                PostalCode = current.PostalCode,
+                Zone = current.Zone,
+                Value = current.Value
+            })
+            .ToListAsync(cancellationToken);
+
+        return new ShipmentPricingSettingsResponse
+        {
+            PriceLists = priceLists
+        };
     }
 
     public async Task<ShipmentPricingSettingsResponse> UpdateSettingsAsync(UpdateShipmentPricingSettingsRequest request, CancellationToken cancellationToken = default)
     {
         ValidateSettingsRequest(request);
 
-        var settings = await _dbContext.ShipmentPricingSettings
-            .Include(current => current.Rules)
-            .SingleAsync(current => current.ShipmentPricingSettingsId == 1, cancellationToken);
+        var normalizedPostalCodes = request.PriceLists
+            .Select(current => NormalizePostalCode(current.PostalCode))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
-        var carrierIds = request.Rules.Select(current => current.CarrierId).Distinct().ToArray();
-        var customerTypeIds = request.Rules.Select(current => current.CustomerTypeId).Distinct().ToArray();
-        var existingCarrierIds = await _dbContext.Carriers
-            .Where(current => carrierIds.Contains(current.CarrierId))
-            .Select(current => current.CarrierId)
-            .ToListAsync(cancellationToken);
-        var existingCustomerTypeIds = await _dbContext.CustomerTypes
-            .Where(current => customerTypeIds.Contains(current.CustomerTypeId))
-            .Select(current => current.CustomerTypeId)
-            .ToListAsync(cancellationToken);
+        var postalCodes = await _dbContext.PostalCodes
+            .Where(current => normalizedPostalCodes.Contains(current.PostalCode))
+            .ToDictionaryAsync(current => current.PostalCode, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
-        if (existingCarrierIds.Count != carrierIds.Length)
+        if (postalCodes.Count != normalizedPostalCodes.Length)
         {
-            throw new InvalidOperationException("Cada regla debe referenciar un carrier existente.");
+            throw new InvalidOperationException("Cada tarifa debe referenciar un código postal existente en el catálogo.");
         }
 
-        if (existingCustomerTypeIds.Count != customerTypeIds.Length)
-        {
-            throw new InvalidOperationException("Cada regla debe referenciar un tipo de cliente existente.");
-        }
-
-        settings.DefaultBaseCost = request.DefaultBaseCost;
-        settings.InsuranceFlatCost = request.InsuranceFlatCost;
-        settings.UpdatedAt = DateTime.UtcNow;
-
-        var requestedRulesById = request.Rules.Where(current => current.Id.HasValue)
+        var existingEntries = await _dbContext.PostalCodePriceLists
+            .ToListAsync(cancellationToken);
+        var requestedEntriesById = request.PriceLists
+            .Where(current => current.Id.HasValue)
             .ToDictionary(current => current.Id!.Value);
 
-        var rulesToRemove = settings.Rules.Where(current => !requestedRulesById.ContainsKey(current.ShipmentPricingRuleId)).ToList();
-        foreach (var rule in rulesToRemove)
+        foreach (var entryToRemove in existingEntries.Where(current => !requestedEntriesById.ContainsKey(current.PostalCodePriceListId)))
         {
-            _dbContext.ShipmentPricingRules.Remove(rule);
+            _dbContext.PostalCodePriceLists.Remove(entryToRemove);
         }
 
-        foreach (var ruleRequest in request.Rules)
+        foreach (var entryRequest in request.PriceLists)
         {
-            var normalizedPrefix = NormalizePostalCode(ruleRequest.PostalCodePrefix);
-            if (ruleRequest.Id.HasValue)
+            var normalizedPostalCode = NormalizePostalCode(entryRequest.PostalCode);
+            var catalogEntry = postalCodes[normalizedPostalCode];
+            var normalizedListName = entryRequest.ListName.Trim();
+
+            if (entryRequest.Id.HasValue)
             {
-                var existing = settings.Rules.Single(current => current.ShipmentPricingRuleId == ruleRequest.Id.Value);
-                existing.RuleName = ruleRequest.RuleName.Trim();
-                existing.CustomerTypeId = ruleRequest.CustomerTypeId;
-                existing.PostalCodePrefix = normalizedPrefix;
-                existing.CarrierId = ruleRequest.CarrierId;
-                existing.BaseCost = ruleRequest.BaseCost;
-                existing.UpdatedAt = DateTime.UtcNow;
+                var existing = existingEntries.Single(current => current.PostalCodePriceListId == entryRequest.Id.Value);
+                existing.ListName = normalizedListName;
+                existing.PostalCode = normalizedPostalCode;
+                existing.Zone = catalogEntry.Zone;
+                existing.Value = entryRequest.Value;
                 continue;
             }
 
-            settings.Rules.Add(new ShipmentPricingRuleEntity
+            await _dbContext.PostalCodePriceLists.AddAsync(new PostalCodePriceListEntity
             {
-                ShipmentPricingRuleId = Guid.NewGuid(),
-                RuleName = ruleRequest.RuleName.Trim(),
-                CustomerTypeId = ruleRequest.CustomerTypeId,
-                PostalCodePrefix = normalizedPrefix,
-                CarrierId = ruleRequest.CarrierId,
-                BaseCost = ruleRequest.BaseCost,
-                UpdatedAt = DateTime.UtcNow
-            });
+                PostalCodePriceListId = Guid.NewGuid(),
+                ListName = normalizedListName,
+                PostalCode = normalizedPostalCode,
+                Zone = catalogEntry.Zone,
+                Value = entryRequest.Value
+            }, cancellationToken);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
-        return Map(settings);
+        return await GetSettingsAsync(cancellationToken);
     }
 
     public Task<ShipmentPricingQuoteResponse> QuoteAsync(ShipmentPricingQuoteRequest request, CancellationToken cancellationToken = default)
@@ -100,10 +102,15 @@ public sealed class ShipmentPricingService
             throw new InvalidOperationException("La cotización requiere datos válidos.");
         }
 
-        return QuoteAsync(request.CustomerTypeId, request.CarrierId, request.DestinationPostalCode, request.IncludeInsurance, cancellationToken);
+        return QuoteAsync(request.CustomerTypeId, request.CarrierId, request.DestinationPostalCode, request.DeclaredValue, request.IncludeInsurance, cancellationToken);
     }
 
-    public async Task<ShipmentPricingQuoteResponse> QuoteAsync(Guid customerTypeId, Guid carrierId, string destinationPostalCode, bool includeInsurance, CancellationToken cancellationToken = default)
+    public Task<ShipmentPricingQuoteResponse> QuoteAsync(Guid customerTypeId, Guid carrierId, string destinationPostalCode, bool includeInsurance, CancellationToken cancellationToken = default)
+    {
+        return QuoteAsync(customerTypeId, carrierId, destinationPostalCode, 0m, includeInsurance, cancellationToken);
+    }
+
+    public async Task<ShipmentPricingQuoteResponse> QuoteAsync(Guid customerTypeId, Guid carrierId, string destinationPostalCode, decimal declaredValue, bool includeInsurance, CancellationToken cancellationToken = default)
     {
         var normalizedPostalCode = NormalizePostalCode(destinationPostalCode);
         if (customerTypeId == Guid.Empty || carrierId == Guid.Empty || string.IsNullOrWhiteSpace(normalizedPostalCode))
@@ -111,7 +118,11 @@ public sealed class ShipmentPricingService
             throw new InvalidOperationException("La cotización requiere tipo de cliente, carrier y código postal válidos.");
         }
 
-        var settings = await LoadSettingsEntityAsync(cancellationToken);
+        if (declaredValue < 0)
+        {
+            throw new InvalidOperationException("El valor declarado no puede ser negativo.");
+        }
+
         var carrier = await _dbContext.Carriers
             .AsNoTracking()
             .SingleOrDefaultAsync(current => current.CarrierId == carrierId, cancellationToken)
@@ -121,13 +132,35 @@ public sealed class ShipmentPricingService
             .SingleOrDefaultAsync(current => current.CustomerTypeId == customerTypeId, cancellationToken)
             ?? throw new InvalidOperationException("El tipo de cliente informado no existe.");
 
-        var matchedRule = settings.Rules
-            .Where(current => current.CarrierId == carrierId && current.CustomerTypeId == customerTypeId)
-            .OrderByDescending(current => current.PostalCodePrefix.Length)
-            .FirstOrDefault(current => normalizedPostalCode.StartsWith(current.PostalCodePrefix, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(customerType.AssignedPriceListName))
+        {
+            throw new InvalidOperationException("El tipo de cliente no tiene una lista de precios asignada.");
+        }
 
-        var baseShippingCost = matchedRule?.BaseCost ?? settings.DefaultBaseCost;
-        var insuranceCost = includeInsurance ? settings.InsuranceFlatCost : 0m;
+        if (includeInsurance && !carrier.InsuranceSupported)
+        {
+            throw new InvalidOperationException("El carrier seleccionado no admite seguro.");
+        }
+
+        var postalCode = await _dbContext.PostalCodes
+            .AsNoTracking()
+            .SingleOrDefaultAsync(current => current.PostalCode == normalizedPostalCode, cancellationToken)
+            ?? throw new InvalidOperationException("El código postal informado no existe en el catálogo.");
+
+        if (!postalCode.IsActive)
+        {
+            throw new InvalidOperationException("El código postal informado está inactivo.");
+        }
+
+        var matchedPrice = await _dbContext.PostalCodePriceLists
+            .AsNoTracking()
+            .SingleOrDefaultAsync(current => current.ListName == customerType.AssignedPriceListName && current.PostalCode == normalizedPostalCode, cancellationToken)
+            ?? throw new InvalidOperationException("No existe una tarifa para la lista asignada y el código postal informado.");
+
+        var baseShippingCost = matchedPrice.Value;
+        var insuranceCost = includeInsurance
+            ? decimal.Round(declaredValue * customerType.InsuranceRatePercentage / 100m, 2, MidpointRounding.AwayFromZero)
+            : 0m;
 
         return new ShipmentPricingQuoteResponse
         {
@@ -137,76 +170,39 @@ public sealed class ShipmentPricingService
             CarrierId = carrierId,
             CarrierName = carrier.Name,
             DestinationPostalCode = normalizedPostalCode,
-            MatchedRuleName = matchedRule?.RuleName,
-            MatchedPostalCodePrefix = matchedRule?.PostalCodePrefix,
-            UsedDefaultRate = matchedRule is null,
+            AssignedPriceListName = customerType.AssignedPriceListName,
+            MatchedZone = matchedPrice.Zone,
+            InsuranceRatePercentage = customerType.InsuranceRatePercentage,
+            DeclaredValue = declaredValue,
             BaseShippingCost = baseShippingCost,
             InsuranceCost = insuranceCost,
             TotalShippingCost = baseShippingCost + insuranceCost
         };
     }
 
-    private async Task<ShipmentPricingSettingsEntity> LoadSettingsEntityAsync(CancellationToken cancellationToken)
-    {
-        return await _dbContext.ShipmentPricingSettings
-            .AsNoTracking()
-            .Include(current => current.Rules)
-            .ThenInclude(current => current.CustomerType)
-            .Include(current => current.Rules)
-            .ThenInclude(current => current.Carrier)
-            .SingleAsync(current => current.ShipmentPricingSettingsId == 1, cancellationToken);
-    }
-
-    private static ShipmentPricingSettingsResponse Map(ShipmentPricingSettingsEntity settings) => new()
-    {
-        DefaultBaseCost = settings.DefaultBaseCost,
-        InsuranceFlatCost = settings.InsuranceFlatCost,
-        Rules = settings.Rules
-            .OrderBy(current => current.PostalCodePrefix)
-            .Select(current => new ShipmentPricingRuleResponse
-            {
-                Id = current.ShipmentPricingRuleId,
-                RuleName = current.RuleName,
-                CustomerTypeId = current.CustomerTypeId,
-                CustomerTypeCode = current.CustomerType.Code,
-                CustomerTypeName = current.CustomerType.Name,
-                PostalCodePrefix = current.PostalCodePrefix,
-                CarrierId = current.CarrierId,
-                CarrierName = current.Carrier.Name,
-                BaseCost = current.BaseCost
-            })
-            .ToList()
-    };
-
     private static void ValidateSettingsRequest(UpdateShipmentPricingSettingsRequest request)
     {
-        if (request.DefaultBaseCost < 0 || request.InsuranceFlatCost < 0)
+        if (request.PriceLists.Any(current => string.IsNullOrWhiteSpace(current.ListName) || string.IsNullOrWhiteSpace(current.PostalCode) || current.Value < 0))
         {
-            throw new InvalidOperationException("Los costos configurables no pueden ser negativos.");
+            throw new InvalidOperationException("Cada tarifa debe incluir lista, código postal y valor válido.");
         }
 
-        if (request.Rules.Any(current => string.IsNullOrWhiteSpace(current.RuleName) || current.CustomerTypeId == Guid.Empty || string.IsNullOrWhiteSpace(current.PostalCodePrefix) || current.CarrierId == Guid.Empty || current.BaseCost < 0))
-        {
-            throw new InvalidOperationException("Cada regla debe incluir nombre, tipo de cliente, carrier, prefijo postal y costo base válido.");
-        }
-
-        var normalizedKeys = request.Rules
+        var normalizedKeys = request.PriceLists
             .Select(current => new
             {
-                current.CustomerTypeId,
-                PostalCodePrefix = NormalizePostalCode(current.PostalCodePrefix),
-                current.CarrierId
+                ListName = current.ListName.Trim(),
+                PostalCode = NormalizePostalCode(current.PostalCode)
             })
             .ToArray();
 
-        if (normalizedKeys.Any(current => string.IsNullOrWhiteSpace(current.PostalCodePrefix)))
+        if (normalizedKeys.Any(current => string.IsNullOrWhiteSpace(current.ListName) || string.IsNullOrWhiteSpace(current.PostalCode)))
         {
-            throw new InvalidOperationException("Los tipos de cliente y prefijos postales deben contener valores válidos.");
+            throw new InvalidOperationException("Las listas y códigos postales deben contener valores válidos.");
         }
 
-        if (normalizedKeys.DistinctBy(current => $"{current.CustomerTypeId}|{current.PostalCodePrefix}|{current.CarrierId}", StringComparer.OrdinalIgnoreCase).Count() != normalizedKeys.Length)
+        if (normalizedKeys.DistinctBy(current => $"{current.ListName}|{current.PostalCode}", StringComparer.OrdinalIgnoreCase).Count() != normalizedKeys.Length)
         {
-            throw new InvalidOperationException("No puede haber reglas duplicadas para la misma combinación de tipo de cliente, carrier y prefijo postal.");
+            throw new InvalidOperationException("No puede haber dos tarifas para la misma combinación de lista y código postal.");
         }
     }
 

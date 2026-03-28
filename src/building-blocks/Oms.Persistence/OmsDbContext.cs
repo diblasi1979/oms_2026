@@ -14,6 +14,8 @@ public sealed class OmsDbContext : DbContext
     public DbSet<OrderItemEntity> OrderItems => Set<OrderItemEntity>();
     public DbSet<OrderLogEntity> OrderLogs => Set<OrderLogEntity>();
     public DbSet<CustomerTypeEntity> CustomerTypes => Set<CustomerTypeEntity>();
+    public DbSet<PostalCodeEntity> PostalCodes => Set<PostalCodeEntity>();
+    public DbSet<PostalCodePriceListEntity> PostalCodePriceLists => Set<PostalCodePriceListEntity>();
     public DbSet<InventoryEntity> Inventory => Set<InventoryEntity>();
     public DbSet<ShipmentEntity> Shipments => Set<ShipmentEntity>();
     public DbSet<CarrierEntity> Carriers => Set<CarrierEntity>();
@@ -73,9 +75,41 @@ public sealed class OmsDbContext : DbContext
         customerTypes.Property(entity => entity.Code).HasMaxLength(30).IsRequired();
         customerTypes.Property(entity => entity.Name).HasMaxLength(120).IsRequired();
         customerTypes.Property(entity => entity.Description).HasMaxLength(300);
+        customerTypes.Property(entity => entity.AssignedPriceListName).HasMaxLength(120).IsRequired();
+        customerTypes.Property(entity => entity.InsuranceRatePercentage).HasColumnType("decimal(9,4)");
         customerTypes.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");
         customerTypes.HasIndex(entity => entity.Code).IsUnique().HasDatabaseName("UQ_CustomerTypes_Code");
         customerTypes.HasIndex(entity => new { entity.IsActive, entity.Name }).HasDatabaseName("IX_CustomerTypes_IsActive_Name");
+
+        var postalCodes = modelBuilder.Entity<PostalCodeEntity>();
+        postalCodes.ToTable("PostalCodes");
+        postalCodes.HasKey(entity => entity.PostalCodeId);
+        postalCodes.Property(entity => entity.Country).HasMaxLength(80).IsRequired();
+        postalCodes.Property(entity => entity.Province).HasMaxLength(120).IsRequired();
+        postalCodes.Property(entity => entity.Locality).HasMaxLength(120).IsRequired();
+        postalCodes.Property(entity => entity.PostalCode).HasMaxLength(20).IsRequired();
+        postalCodes.Property(entity => entity.Zone).HasMaxLength(60).IsRequired();
+        postalCodes.HasIndex(entity => new { entity.Country, entity.Province, entity.Locality, entity.PostalCode })
+            .IsUnique()
+            .HasDatabaseName("UQ_PostalCodes_CountryProvinceLocalityPostalCode");
+        postalCodes.HasIndex(entity => new { entity.IsActive, entity.Country, entity.Province, entity.Locality })
+            .HasDatabaseName("IX_PostalCodes_IsActive_CountryProvinceLocality");
+
+        var postalCodePriceLists = modelBuilder.Entity<PostalCodePriceListEntity>();
+        postalCodePriceLists.ToTable("PostalCodePriceLists", table =>
+        {
+            table.HasCheckConstraint("CK_PostalCodePriceLists_Value", "Value >= 0");
+        });
+        postalCodePriceLists.HasKey(entity => entity.PostalCodePriceListId);
+        postalCodePriceLists.Property(entity => entity.ListName).HasMaxLength(120).IsRequired();
+        postalCodePriceLists.Property(entity => entity.PostalCode).HasMaxLength(20).IsRequired();
+        postalCodePriceLists.Property(entity => entity.Value).HasColumnType("decimal(18,2)");
+        postalCodePriceLists.Property(entity => entity.Zone).HasMaxLength(60).IsRequired();
+        postalCodePriceLists.HasIndex(entity => new { entity.ListName, entity.PostalCode, entity.Zone })
+            .IsUnique()
+            .HasDatabaseName("UQ_PostalCodePriceLists_ListPostalCodeZone");
+        postalCodePriceLists.HasIndex(entity => new { entity.PostalCode, entity.Zone })
+            .HasDatabaseName("IX_PostalCodePriceLists_PostalCodeZone");
 
         var orderItems = modelBuilder.Entity<OrderItemEntity>();
         orderItems.ToTable("OrderItems", table =>
@@ -136,7 +170,12 @@ public sealed class OmsDbContext : DbContext
         shipments.Property(entity => entity.HeightCm).HasColumnType("decimal(12,2)");
         shipments.Property(entity => entity.WidthCm).HasColumnType("decimal(12,2)");
         shipments.Property(entity => entity.LengthCm).HasColumnType("decimal(12,2)");
+        shipments.Property(entity => entity.DeclaredMerchandiseValue).HasColumnType("decimal(18,2)");
+        shipments.Property(entity => entity.BaseShippingCost).HasColumnType("decimal(18,2)");
+        shipments.Property(entity => entity.InsuranceCost).HasColumnType("decimal(18,2)");
         shipments.Property(entity => entity.ShippingCost).HasColumnType("decimal(18,2)");
+        shipments.Property(entity => entity.AppliedPriceListName).HasMaxLength(120).IsRequired();
+        shipments.Property(entity => entity.AppliedZone).HasMaxLength(60).IsRequired();
         shipments.Property(entity => entity.DestinationAddress).HasMaxLength(250).IsRequired();
         shipments.Property(entity => entity.CreatedAt).HasColumnType("datetime2");
         shipments.Property(entity => entity.UpdatedAt).HasColumnType("datetime2");

@@ -13,6 +13,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddDbContext<OmsDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("OmsDb")));
 builder.Services.AddScoped<CarriersService>();
+builder.Services.AddScoped<PostalCodesService>();
 builder.Services.AddScoped<ShipmentPricingService>();
 builder.Services.AddScoped<ShipmentsService>();
 builder.Services.AddControllers();

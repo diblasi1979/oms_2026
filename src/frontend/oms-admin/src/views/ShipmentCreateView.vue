@@ -116,7 +116,7 @@ async function loadQuote() {
   errorMessage.value = ''
 
   try {
-    quote.value = await calculateShipmentQuote(authStore.token, order.value.customerTypeId, form.carrierId, order.value.destinationPostalCode, form.includeInsurance)
+    quote.value = await calculateShipmentQuote(authStore.token, order.value.customerTypeId, form.carrierId, order.value.destinationPostalCode, order.value.total, form.includeInsurance)
   } catch (error) {
     quote.value = null
     errorMessage.value = error instanceof Error ? error.message : 'No fue posible calcular la cotización del envío.'
@@ -244,13 +244,21 @@ onMounted(loadCarriers)
 
           <div v-if="quote" class="quote-card">
             <div>
-              <span>Regla aplicada</span>
-              <strong>{{ quote.matchedRuleName || 'Tarifa por defecto' }}</strong>
+              <span>Lista aplicada</span>
+              <strong>{{ quote.assignedPriceListName }}</strong>
             </div>
               <div>
                 <span>Cliente / carrier</span>
                 <strong>{{ quote.customerTypeName }} · {{ quote.carrierName }}</strong>
               </div>
+            <div>
+              <span>Zona</span>
+              <strong>{{ quote.matchedZone }}</strong>
+            </div>
+            <div>
+              <span>Valor declarado</span>
+              <strong>{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(order?.total ?? 0) }}</strong>
+            </div>
             <div>
               <span>Base</span>
               <strong>{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(quote.baseShippingCost) }}</strong>
@@ -357,6 +365,10 @@ onMounted(loadCarriers)
             <div>
               <span>Costo final</span>
               <strong>{{ new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(createdShipment.shippingCost) }}</strong>
+            </div>
+            <div>
+              <span>Lista / zona</span>
+              <strong>{{ createdShipment.appliedPriceListName }} · {{ createdShipment.appliedZone }}</strong>
             </div>
             <div>
               <span>Destino</span>

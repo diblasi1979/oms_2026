@@ -19,6 +19,8 @@ const form = reactive<CustomerTypeUpsertPayload>({
   code: '',
   name: '',
   description: '',
+  assignedPriceListName: '',
+  insuranceRatePercentage: 0,
   isActive: true,
 })
 
@@ -40,6 +42,8 @@ function resetForm() {
   form.code = ''
   form.name = ''
   form.description = ''
+  form.assignedPriceListName = ''
+  form.insuranceRatePercentage = 0
   form.isActive = true
 }
 
@@ -48,6 +52,8 @@ function editCustomerType(customerType: CustomerTypeRecord) {
   form.code = customerType.code
   form.name = customerType.name
   form.description = customerType.description
+  form.assignedPriceListName = customerType.assignedPriceListName
+  form.insuranceRatePercentage = customerType.insuranceRatePercentage
   form.isActive = customerType.isActive
 }
 
@@ -91,7 +97,7 @@ onMounted(loadCustomerTypes)
       <div class="detail-hero-copy">
         <p class="eyebrow">Administración comercial</p>
         <h1>Tipos de cliente</h1>
-        <p class="lede">Gestioná el maestro comercial que luego usan las órdenes y las listas de tarifas por carrier y código postal.</p>
+        <p class="lede">Gestioná la segmentación comercial que define la lista de precios asignada y el porcentaje de seguro aplicado a cada envío.</p>
       </div>
       <div class="detail-hero-side">
         <div class="detail-kicker">
@@ -122,6 +128,14 @@ onMounted(loadCustomerTypes)
               <label class="shipment-form-field shipment-span-2">
                 <span>Descripción</span>
                 <textarea v-model="form.description" class="p-inputtext carriers-notes-area" rows="4" placeholder="Criterios comerciales o segmentación"></textarea>
+              </label>
+              <label class="shipment-form-field">
+                <span>Lista de precios asignada</span>
+                <InputText v-model="form.assignedPriceListName" placeholder="Lista General" />
+              </label>
+              <label class="shipment-form-field">
+                <span>% de seguro</span>
+                <input v-model.number="form.insuranceRatePercentage" class="p-inputtext" type="number" min="0" step="0.01" />
               </label>
               <label class="settings-check-row shipment-check-row">
                 <span>Activo</span>
@@ -165,6 +179,8 @@ onMounted(loadCustomerTypes)
                     <th>Nombre</th>
                     <th>Código</th>
                     <th>Descripción</th>
+                    <th>Lista</th>
+                    <th>% Seguro</th>
                     <th>Estado</th>
                     <th></th>
                   </tr>
@@ -176,6 +192,8 @@ onMounted(loadCustomerTypes)
                     </td>
                     <td>{{ customerType.code }}</td>
                     <td>{{ customerType.description || 'Sin descripción' }}</td>
+                    <td>{{ customerType.assignedPriceListName }}</td>
+                    <td>{{ customerType.insuranceRatePercentage.toFixed(2) }}%</td>
                     <td>{{ customerType.isActive ? 'Activo' : 'Inactivo' }}</td>
                     <td>
                       <Button label="Editar" severity="secondary" outlined icon="pi pi-pencil" @click="editCustomerType(customerType)" />

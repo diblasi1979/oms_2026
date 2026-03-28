@@ -35,9 +35,12 @@ public sealed class ShipmentResponse
     public decimal HeightCm { get; init; }
     public decimal WidthCm { get; init; }
     public decimal LengthCm { get; init; }
+    public decimal DeclaredMerchandiseValue { get; init; }
     public decimal BaseShippingCost { get; init; }
     public decimal InsuranceCost { get; init; }
     public decimal ShippingCost { get; init; }
+    public string AppliedPriceListName { get; init; } = string.Empty;
+    public string AppliedZone { get; init; } = string.Empty;
     public string DestinationPostalCode { get; init; } = string.Empty;
     public string DestinationAddress { get; init; } = string.Empty;
     public List<ShipmentEventResponse> Events { get; init; } = new();
@@ -57,6 +60,27 @@ public sealed class CarrierResponse
     public string Notes { get; init; } = string.Empty;
 }
 
+public sealed class PostalCodeResponse
+{
+    public Guid Id { get; init; }
+    public string Country { get; init; } = string.Empty;
+    public string Province { get; init; } = string.Empty;
+    public string Locality { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public bool IsActive { get; init; }
+    public string Zone { get; init; } = string.Empty;
+}
+
+public sealed class UpsertPostalCodeRequest
+{
+    public string Country { get; set; } = string.Empty;
+    public string Province { get; set; } = string.Empty;
+    public string Locality { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public string Zone { get; set; } = string.Empty;
+}
+
 public sealed class UpsertCarrierRequest
 {
     public string Code { get; set; } = string.Empty;
@@ -72,39 +96,29 @@ public sealed class UpsertCarrierRequest
 
 public sealed class ShipmentPricingSettingsResponse
 {
-    public decimal DefaultBaseCost { get; init; }
-    public decimal InsuranceFlatCost { get; init; }
-    public List<ShipmentPricingRuleResponse> Rules { get; init; } = new();
+    public List<PostalCodePriceListResponse> PriceLists { get; init; } = new();
 }
 
-public sealed class ShipmentPricingRuleResponse
+public sealed class PostalCodePriceListResponse
 {
     public Guid Id { get; init; }
-    public string RuleName { get; init; } = string.Empty;
-    public Guid CustomerTypeId { get; init; }
-    public string CustomerTypeCode { get; init; } = string.Empty;
-    public string CustomerTypeName { get; init; } = string.Empty;
-    public string PostalCodePrefix { get; init; } = string.Empty;
-    public Guid CarrierId { get; init; }
-    public string CarrierName { get; init; } = string.Empty;
-    public decimal BaseCost { get; init; }
+    public string ListName { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string Zone { get; init; } = string.Empty;
+    public decimal Value { get; init; }
 }
 
 public sealed class UpdateShipmentPricingSettingsRequest
 {
-    public decimal DefaultBaseCost { get; set; }
-    public decimal InsuranceFlatCost { get; set; }
-    public List<UpdateShipmentPricingRuleRequest> Rules { get; set; } = new();
+    public List<UpdatePostalCodePriceListRequest> PriceLists { get; set; } = new();
 }
 
-public sealed class UpdateShipmentPricingRuleRequest
+public sealed class UpdatePostalCodePriceListRequest
 {
     public Guid? Id { get; set; }
-    public string RuleName { get; set; } = string.Empty;
-    public Guid CustomerTypeId { get; set; }
-    public string PostalCodePrefix { get; set; } = string.Empty;
-    public Guid CarrierId { get; set; }
-    public decimal BaseCost { get; set; }
+    public string ListName { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public decimal Value { get; set; }
 }
 
 public sealed class ShipmentPricingQuoteRequest
@@ -112,6 +126,7 @@ public sealed class ShipmentPricingQuoteRequest
     public Guid CustomerTypeId { get; set; }
     public Guid CarrierId { get; set; }
     public string DestinationPostalCode { get; set; } = string.Empty;
+    public decimal DeclaredValue { get; set; }
     public bool IncludeInsurance { get; set; } = true;
 }
 
@@ -123,9 +138,10 @@ public sealed class ShipmentPricingQuoteResponse
     public Guid CarrierId { get; init; }
     public string CarrierName { get; init; } = string.Empty;
     public string DestinationPostalCode { get; init; } = string.Empty;
-    public string? MatchedRuleName { get; init; }
-    public string? MatchedPostalCodePrefix { get; init; }
-    public bool UsedDefaultRate { get; init; }
+    public string AssignedPriceListName { get; init; } = string.Empty;
+    public string MatchedZone { get; init; } = string.Empty;
+    public decimal InsuranceRatePercentage { get; init; }
+    public decimal DeclaredValue { get; init; }
     public decimal BaseShippingCost { get; init; }
     public decimal InsuranceCost { get; init; }
     public decimal TotalShippingCost { get; init; }
@@ -171,9 +187,12 @@ internal sealed class ShipmentRecord
     public decimal HeightCm { get; init; }
     public decimal WidthCm { get; init; }
     public decimal LengthCm { get; init; }
+    public decimal DeclaredMerchandiseValue { get; init; }
     public decimal BaseShippingCost { get; init; }
     public decimal InsuranceCost { get; init; }
     public decimal ShippingCost { get; init; }
+    public string AppliedPriceListName { get; init; } = string.Empty;
+    public string AppliedZone { get; init; } = string.Empty;
     public string DestinationPostalCode { get; init; } = string.Empty;
     public string DestinationAddress { get; init; } = string.Empty;
     public List<ShipmentEventResponse> Events { get; init; } = new();

@@ -56,6 +56,8 @@ public sealed class CustomerTypesService
             Code = normalizedCode,
             Name = request.Name.Trim(),
             Description = request.Description.Trim(),
+            AssignedPriceListName = request.AssignedPriceListName.Trim(),
+            InsuranceRatePercentage = request.InsuranceRatePercentage,
             IsActive = request.IsActive,
             UpdatedAt = DateTime.UtcNow
         };
@@ -82,6 +84,8 @@ public sealed class CustomerTypesService
         customerType.Code = normalizedCode;
         customerType.Name = request.Name.Trim();
         customerType.Description = request.Description.Trim();
+        customerType.AssignedPriceListName = request.AssignedPriceListName.Trim();
+        customerType.InsuranceRatePercentage = request.InsuranceRatePercentage;
         customerType.IsActive = request.IsActive;
         customerType.UpdatedAt = DateTime.UtcNow;
 
@@ -95,14 +99,21 @@ public sealed class CustomerTypesService
         Code = customerType.Code,
         Name = customerType.Name,
         Description = customerType.Description,
+        AssignedPriceListName = customerType.AssignedPriceListName,
+        InsuranceRatePercentage = customerType.InsuranceRatePercentage,
         IsActive = customerType.IsActive
     };
 
     private static void ValidateRequest(UpsertCustomerTypeRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
+        if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.AssignedPriceListName))
         {
-            throw new InvalidOperationException("Código y nombre son obligatorios.");
+            throw new InvalidOperationException("Código, nombre y lista de precios asignada son obligatorios.");
+        }
+
+        if (request.InsuranceRatePercentage < 0)
+        {
+            throw new InvalidOperationException("El porcentaje de seguro no puede ser negativo.");
         }
     }
 

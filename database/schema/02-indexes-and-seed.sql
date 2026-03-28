@@ -10,6 +10,22 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Orders_CustomerTypeId'
 CREATE INDEX IX_Orders_CustomerTypeId ON Orders (CustomerTypeId);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_PostalCodes_CountryProvinceLocalityPostalCode' AND object_id = OBJECT_ID('PostalCodes'))
+CREATE UNIQUE INDEX UQ_PostalCodes_CountryProvinceLocalityPostalCode ON PostalCodes (Country, Province, Locality, PostalCode);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PostalCodes_IsActive_CountryProvinceLocality' AND object_id = OBJECT_ID('PostalCodes'))
+CREATE INDEX IX_PostalCodes_IsActive_CountryProvinceLocality ON PostalCodes (IsActive, Country, Province, Locality);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_PostalCodePriceLists_ListPostalCodeZone' AND object_id = OBJECT_ID('PostalCodePriceLists'))
+CREATE UNIQUE INDEX UQ_PostalCodePriceLists_ListPostalCodeZone ON PostalCodePriceLists (ListName, PostalCode, Zone);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PostalCodePriceLists_PostalCodeZone' AND object_id = OBJECT_ID('PostalCodePriceLists'))
+CREATE INDEX IX_PostalCodePriceLists_PostalCodeZone ON PostalCodePriceLists (PostalCode, Zone);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_OrderItems_OrderId' AND object_id = OBJECT_ID('OrderItems'))
 CREATE INDEX IX_OrderItems_OrderId ON OrderItems (OrderId);
 GO
@@ -59,11 +75,37 @@ VALUES
 GO
 
 IF NOT EXISTS (SELECT 1 FROM CustomerTypes)
-INSERT INTO CustomerTypes (CustomerTypeId, Code, Name, Description, IsActive, UpdatedAt)
+INSERT INTO CustomerTypes (CustomerTypeId, Code, Name, Description, AssignedPriceListName, InsuranceRatePercentage, IsActive, UpdatedAt)
 VALUES
-('7F3FBC62-B77F-4D2E-9C4C-000000000001', 'STANDARD', 'Standard', 'Clientes estándar con tarifa general.', 1, SYSUTCDATETIME()),
-('7F3FBC62-B77F-4D2E-9C4C-000000000002', 'PREMIUM', 'Premium', 'Clientes preferenciales con acuerdos comerciales específicos.', 1, SYSUTCDATETIME()),
-('7F3FBC62-B77F-4D2E-9C4C-000000000003', 'WHOLESALE', 'Mayorista', 'Clientes mayoristas o cuentas corporativas de alto volumen.', 1, SYSUTCDATETIME());
+('7F3FBC62-B77F-4D2E-9C4C-000000000001', 'STANDARD', 'Standard', 'Clientes estándar con tarifa general.', 'Lista General', 2.0000, 1, SYSUTCDATETIME()),
+('7F3FBC62-B77F-4D2E-9C4C-000000000002', 'PREMIUM', 'Premium', 'Clientes preferenciales con acuerdos comerciales específicos.', 'Lista Premium', 1.5000, 1, SYSUTCDATETIME()),
+('7F3FBC62-B77F-4D2E-9C4C-000000000003', 'WHOLESALE', 'Mayorista', 'Clientes mayoristas o cuentas corporativas de alto volumen.', 'Lista Mayorista', 1.0000, 1, SYSUTCDATETIME());
+GO
+
+IF NOT EXISTS (SELECT 1 FROM PostalCodes)
+INSERT INTO PostalCodes (PostalCodeId, Country, Province, Locality, PostalCode, IsActive, Zone)
+VALUES
+('8A5AB5D2-F35D-4EF5-9775-000000000001', 'Argentina', 'Mendoza', 'Mendoza', '5500', 1, 'Centro'),
+('8A5AB5D2-F35D-4EF5-9775-000000000002', 'Argentina', 'Buenos Aires', 'Buenos Aires', '1000', 1, 'AMBA'),
+('8A5AB5D2-F35D-4EF5-9775-000000000003', 'Argentina', 'Santa Fe', 'Rosario', '2000', 1, 'Litoral'),
+('8A5AB5D2-F35D-4EF5-9775-000000000004', 'Argentina', 'Buenos Aires', 'La Plata', '1900', 1, 'AMBA');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM PostalCodePriceLists)
+INSERT INTO PostalCodePriceLists (PostalCodePriceListId, ListName, PostalCode, Value, Zone)
+VALUES
+('9B4AB5D2-F35D-4EF5-9775-000000000001', 'Lista General', '1000', 9.50, 'AMBA'),
+('9B4AB5D2-F35D-4EF5-9775-000000000002', 'Lista General', '1900', 11.20, 'AMBA'),
+('9B4AB5D2-F35D-4EF5-9775-000000000003', 'Lista General', '2000', 13.20, 'Litoral'),
+('9B4AB5D2-F35D-4EF5-9775-000000000004', 'Lista General', '5500', 15.75, 'Centro'),
+('9B4AB5D2-F35D-4EF5-9775-000000000005', 'Lista Premium', '1000', 8.90, 'AMBA'),
+('9B4AB5D2-F35D-4EF5-9775-000000000006', 'Lista Premium', '1900', 10.50, 'AMBA'),
+('9B4AB5D2-F35D-4EF5-9775-000000000007', 'Lista Premium', '2000', 12.00, 'Litoral'),
+('9B4AB5D2-F35D-4EF5-9775-000000000008', 'Lista Premium', '5500', 14.25, 'Centro'),
+('9B4AB5D2-F35D-4EF5-9775-000000000009', 'Lista Mayorista', '1000', 8.25, 'AMBA'),
+('9B4AB5D2-F35D-4EF5-9775-000000000010', 'Lista Mayorista', '1900', 10.00, 'AMBA'),
+('9B4AB5D2-F35D-4EF5-9775-000000000011', 'Lista Mayorista', '2000', 11.50, 'Litoral'),
+('9B4AB5D2-F35D-4EF5-9775-000000000012', 'Lista Mayorista', '5500', 13.80, 'Centro');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM Inventory)
@@ -111,9 +153,9 @@ VALUES
 GO
 
 IF NOT EXISTS (SELECT 1 FROM Shipments WHERE ShipmentId = 'D91AB4D9-09A9-4DC0-BF89-E7614ED4B802')
-INSERT INTO Shipments (ShipmentId, OrderId, CarrierId, CustomerTypeId, RecipientName, RecipientPhone, RecipientEmail, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, ShippingCost, DestinationAddress, CreatedAt, UpdatedAt)
+INSERT INTO Shipments (ShipmentId, OrderId, CarrierId, CustomerTypeId, RecipientName, RecipientPhone, RecipientEmail, Carrier, TrackingNumber, Status, WeightKg, HeightCm, WidthCm, LengthCm, DeclaredMerchandiseValue, BaseShippingCost, InsuranceCost, ShippingCost, AppliedPriceListName, AppliedZone, DestinationAddress, CreatedAt, UpdatedAt)
 VALUES
-('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', '6C1A2F12-0C19-4F23-9FB2-000000000001', '7F3FBC62-B77F-4D2E-9C4C-000000000001', 'Marcela Gomez', '+54 261 555 0101', 'marcela.gomez@example.com', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 18.50, 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
+('D91AB4D9-09A9-4DC0-BF89-E7614ED4B802', 'C71AB4D9-09A9-4DC0-BF89-E7614ED4B801', '6C1A2F12-0C19-4F23-9FB2-000000000001', '7F3FBC62-B77F-4D2E-9C4C-000000000001', 'Marcela Gomez', '+54 261 555 0101', 'marcela.gomez@example.com', 'Andreani', 'TRK-20260327-48291', 'InTransit', 8.400, 45.00, 40.00, 55.00, 683.60, 15.75, 13.67, 29.42, 'Lista General', 'Centro', 'Av. San Martin 123, Mendoza', DATEADD(HOUR, -6, DATEADD(MINUTE, 30, SYSUTCDATETIME())), DATEADD(HOUR, -5, SYSUTCDATETIME()));
 GO
 
 IF NOT EXISTS (SELECT 1 FROM ShipmentPricingSettings WHERE ShipmentPricingSettingsId = 1)

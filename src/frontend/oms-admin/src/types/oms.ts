@@ -100,9 +100,12 @@ export interface ShipmentRecord {
   heightCm: number
   widthCm: number
   lengthCm: number
+  declaredMerchandiseValue: number
   baseShippingCost: number
   insuranceCost: number
   shippingCost: number
+  appliedPriceListName: string
+  appliedZone: string
   destinationPostalCode: string
   destinationAddress: string
   events: ShipmentEvent[]
@@ -133,22 +136,35 @@ export interface CarrierUpsertPayload {
   notes: string
 }
 
-export interface ShipmentPricingRule {
+export interface PostalCodeRecord {
+  id: string
+  country: string
+  province: string
+  locality: string
+  postalCode: string
+  isActive: boolean
+  zone: string
+}
+
+export interface PostalCodeUpsertPayload {
+  country: string
+  province: string
+  locality: string
+  postalCode: string
+  isActive: boolean
+  zone: string
+}
+
+export interface PostalCodePriceListRecord {
   id?: string
-  ruleName: string
-  customerTypeId: string
-  customerTypeCode?: string
-  customerTypeName?: string
-  postalCodePrefix: string
-  carrierId: string
-  carrierName?: string
-  baseCost: number
+  listName: string
+  postalCode: string
+  zone: string
+  value: number
 }
 
 export interface ShipmentPricingSettings {
-  defaultBaseCost: number
-  insuranceFlatCost: number
-  rules: ShipmentPricingRule[]
+  priceLists: PostalCodePriceListRecord[]
 }
 
 export interface ShipmentPricingQuote {
@@ -158,9 +174,10 @@ export interface ShipmentPricingQuote {
   carrierId: string
   carrierName: string
   destinationPostalCode: string
-  matchedRuleName?: string | null
-  matchedPostalCodePrefix?: string | null
-  usedDefaultRate: boolean
+  assignedPriceListName: string
+  matchedZone: string
+  insuranceRatePercentage: number
+  declaredValue: number
   baseShippingCost: number
   insuranceCost: number
   totalShippingCost: number
@@ -171,6 +188,8 @@ export interface CustomerTypeRecord {
   code: string
   name: string
   description: string
+  assignedPriceListName: string
+  insuranceRatePercentage: number
   isActive: boolean
 }
 
@@ -178,5 +197,7 @@ export interface CustomerTypeUpsertPayload {
   code: string
   name: string
   description: string
+  assignedPriceListName: string
+  insuranceRatePercentage: number
   isActive: boolean
 }

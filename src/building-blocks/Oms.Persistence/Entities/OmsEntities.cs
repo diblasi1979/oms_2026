@@ -87,7 +87,12 @@ public sealed class ShipmentEntity
     public decimal HeightCm { get; set; }
     public decimal WidthCm { get; set; }
     public decimal LengthCm { get; set; }
+    public decimal DeclaredMerchandiseValue { get; set; }
+    public decimal BaseShippingCost { get; set; }
+    public decimal InsuranceCost { get; set; }
     public decimal ShippingCost { get; set; }
+    public string AppliedPriceListName { get; set; } = string.Empty;
+    public string AppliedZone { get; set; } = string.Empty;
     public string DestinationAddress { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -103,11 +108,33 @@ public sealed class CustomerTypeEntity
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string AssignedPriceListName { get; set; } = string.Empty;
+    public decimal InsuranceRatePercentage { get; set; }
     public bool IsActive { get; set; }
     public DateTime UpdatedAt { get; set; }
     public ICollection<OrderEntity> Orders { get; set; } = new List<OrderEntity>();
     public ICollection<ShipmentEntity> Shipments { get; set; } = new List<ShipmentEntity>();
     public ICollection<ShipmentPricingRuleEntity> PricingRules { get; set; } = new List<ShipmentPricingRuleEntity>();
+}
+
+public sealed class PostalCodeEntity
+{
+    public Guid PostalCodeId { get; set; }
+    public string Country { get; set; } = string.Empty;
+    public string Province { get; set; } = string.Empty;
+    public string Locality { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public string Zone { get; set; } = string.Empty;
+}
+
+public sealed class PostalCodePriceListEntity
+{
+    public Guid PostalCodePriceListId { get; set; }
+    public string ListName { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public decimal Value { get; set; }
+    public string Zone { get; set; } = string.Empty;
 }
 
 public sealed class CarrierEntity

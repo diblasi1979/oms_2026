@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { getMockCreatedShipment, getMockLabel, getMockShipmentPricingQuote, getMockShipmentPricingSettings } from './mockData'
-import type { CarrierRecord, CarrierUpsertPayload, CreateShipmentPayload, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
-import { getMockCarrierById, getMockCarriers } from './mockData'
+import type { CarrierRecord, CarrierUpsertPayload, CreateShipmentPayload, PostalCodeRecord, PostalCodeUpsertPayload, ShipmentPricingQuote, ShipmentPricingSettings, ShipmentRecord, ShippingLabel } from '../types/oms'
+import { getMockCarrierById, getMockCarriers, getMockPostalCodeById, getMockPostalCodes } from './mockData'
 
 const SHIPMENTS_API_BASE_URL = import.meta.env.VITE_SHIPMENTS_API_BASE_URL ?? 'https://localhost:7003'
 
@@ -91,6 +91,58 @@ export async function updateCarrier(token: string, carrierId: string, payload: C
   }
 }
 
+export async function fetchPostalCodes(token: string, includeInactive = false): Promise<PostalCodeRecord[]> {
+  try {
+    const response = await axios.get<PostalCodeRecord[]>(`${SHIPMENTS_API_BASE_URL}/api/postal-codes`, {
+      params: { includeInactive },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return getMockPostalCodes(includeInactive)
+  }
+}
+
+export async function createPostalCode(token: string, payload: PostalCodeUpsertPayload): Promise<PostalCodeRecord> {
+  try {
+    const response = await axios.post<PostalCodeRecord>(`${SHIPMENTS_API_BASE_URL}/api/postal-codes`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return {
+      id: crypto.randomUUID(),
+      ...payload,
+    }
+  }
+}
+
+export async function updatePostalCode(token: string, postalCodeId: string, payload: PostalCodeUpsertPayload): Promise<PostalCodeRecord> {
+  try {
+    const response = await axios.put<PostalCodeRecord>(`${SHIPMENTS_API_BASE_URL}/api/postal-codes/${postalCodeId}`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 5000,
+    })
+
+    return response.data
+  } catch {
+    return {
+      ...(getMockPostalCodeById(postalCodeId) ?? { id: postalCodeId }),
+      ...payload,
+    } as PostalCodeRecord
+  }
+}
+
 export async function fetchShipmentPricingSettings(token: string): Promise<ShipmentPricingSettings> {
   try {
     const response = await axios.get<ShipmentPricingSettings>(`${SHIPMENTS_API_BASE_URL}/api/shipment-pricing/settings`, {
@@ -121,12 +173,13 @@ export async function updateShipmentPricingSettings(token: string, payload: Ship
   }
 }
 
-export async function calculateShipmentQuote(token: string, customerTypeId: string, carrierId: string, destinationPostalCode: string, includeInsurance = true): Promise<ShipmentPricingQuote> {
+export async function calculateShipmentQuote(token: string, customerTypeId: string, carrierId: string, destinationPostalCode: string, declaredValue: number, includeInsurance = true): Promise<ShipmentPricingQuote> {
   try {
     const response = await axios.post<ShipmentPricingQuote>(`${SHIPMENTS_API_BASE_URL}/api/shipment-pricing/quote`, {
       customerTypeId,
       carrierId,
       destinationPostalCode,
+      declaredValue,
       includeInsurance,
     }, {
       headers: {
@@ -137,6 +190,6 @@ export async function calculateShipmentQuote(token: string, customerTypeId: stri
 
     return response.data
   } catch {
-    return getMockShipmentPricingQuote(customerTypeId, carrierId, destinationPostalCode, includeInsurance)
+    return getMockShipmentPricingQuote(customerTypeId, carrierId, destinationPostalCode, declaredValue, includeInsurance)
   }
 }

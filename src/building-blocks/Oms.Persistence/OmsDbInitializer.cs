@@ -8,6 +8,10 @@ public static class OmsDbInitializer
     private static readonly Guid StandardCustomerTypeId = Guid.Parse("7f3fbc62-b77f-4d2e-9c4c-000000000001");
     private static readonly Guid PremiumCustomerTypeId = Guid.Parse("7f3fbc62-b77f-4d2e-9c4c-000000000002");
     private static readonly Guid WholesaleCustomerTypeId = Guid.Parse("7f3fbc62-b77f-4d2e-9c4c-000000000003");
+    private static readonly Guid PostalCodeMendoza5500Id = Guid.Parse("8a5ab5d2-f35d-4ef5-9775-000000000001");
+    private static readonly Guid PostalCodeBuenosAires1000Id = Guid.Parse("8a5ab5d2-f35d-4ef5-9775-000000000002");
+    private static readonly Guid PostalCodeRosario2000Id = Guid.Parse("8a5ab5d2-f35d-4ef5-9775-000000000003");
+    private static readonly Guid PostalCodeLaPlata1900Id = Guid.Parse("8a5ab5d2-f35d-4ef5-9775-000000000004");
 
     public static async Task InitializeAsync(OmsDbContext dbContext, CancellationToken cancellationToken = default)
     {
@@ -23,9 +27,12 @@ public static class OmsDbInitializer
         }
 
         await EnsureCustomerTypeSchemaAsync(dbContext, cancellationToken);
+        await EnsurePostalCatalogSchemaAsync(dbContext, cancellationToken);
         await EnsureCarrierSchemaAsync(dbContext, cancellationToken);
         await EnsureShipmentPricingSchemaAsync(dbContext, cancellationToken);
+        await EnsureShipmentCostBreakdownSchemaAsync(dbContext, cancellationToken);
         await EnsureCustomerTypeSeedDataAsync(dbContext, cancellationToken);
+        await EnsurePostalCatalogSeedDataAsync(dbContext, cancellationToken);
         await EnsureCustomerTypeRelationshipsAsync(dbContext, cancellationToken);
 
         if (!await dbContext.Warehouses.AnyAsync(cancellationToken))
@@ -107,7 +114,12 @@ public static class OmsDbInitializer
                 HeightCm = 45m,
                 WidthCm = 40m,
                 LengthCm = 55m,
-                ShippingCost = 18.50m,
+                DeclaredMerchandiseValue = 683.60m,
+                BaseShippingCost = 15.75m,
+                InsuranceCost = 13.67m,
+                ShippingCost = 29.42m,
+                AppliedPriceListName = "Lista General",
+                AppliedZone = "Centro",
                 DestinationAddress = "Av. San Martin 123, Mendoza",
                 CreatedAt = createdAt.AddMinutes(30),
                 UpdatedAt = createdAt.AddHours(1)
@@ -292,6 +304,8 @@ public static class OmsDbInitializer
                 Code = "STANDARD",
                 Name = "Standard",
                 Description = "Clientes estándar con tarifa general.",
+                AssignedPriceListName = "Lista General",
+                InsuranceRatePercentage = 2.0000m,
                 IsActive = true,
                 UpdatedAt = DateTime.UtcNow
             },
@@ -301,6 +315,8 @@ public static class OmsDbInitializer
                 Code = "PREMIUM",
                 Name = "Premium",
                 Description = "Clientes preferenciales con acuerdos comerciales específicos.",
+                AssignedPriceListName = "Lista Premium",
+                InsuranceRatePercentage = 1.5000m,
                 IsActive = true,
                 UpdatedAt = DateTime.UtcNow
             },
@@ -310,6 +326,8 @@ public static class OmsDbInitializer
                 Code = "WHOLESALE",
                 Name = "Mayorista",
                 Description = "Clientes mayoristas o cuentas corporativas de alto volumen.",
+                AssignedPriceListName = "Lista Mayorista",
+                InsuranceRatePercentage = 1.0000m,
                 IsActive = true,
                 UpdatedAt = DateTime.UtcNow
             }
@@ -325,6 +343,8 @@ public static class OmsDbInitializer
                 existingCustomerType.Code = desiredCustomerType.Code;
                 existingCustomerType.Name = desiredCustomerType.Name;
                 existingCustomerType.Description = desiredCustomerType.Description;
+                existingCustomerType.AssignedPriceListName = desiredCustomerType.AssignedPriceListName;
+                existingCustomerType.InsuranceRatePercentage = desiredCustomerType.InsuranceRatePercentage;
                 existingCustomerType.IsActive = desiredCustomerType.IsActive;
                 existingCustomerType.UpdatedAt = DateTime.UtcNow;
                 continue;
@@ -586,6 +606,116 @@ END
         await dbContext.Database.ExecuteSqlRawAsync(ensureCarrierFkSql, cancellationToken);
     }
 
+    private static async Task EnsurePostalCatalogSeedDataAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var desiredPostalCodes = new[]
+        {
+            new PostalCodeEntity
+            {
+                PostalCodeId = PostalCodeMendoza5500Id,
+                Country = "Argentina",
+                Province = "Mendoza",
+                Locality = "Mendoza",
+                PostalCode = "5500",
+                IsActive = true,
+                Zone = "Centro"
+            },
+            new PostalCodeEntity
+            {
+                PostalCodeId = PostalCodeBuenosAires1000Id,
+                Country = "Argentina",
+                Province = "Buenos Aires",
+                Locality = "Buenos Aires",
+                PostalCode = "1000",
+                IsActive = true,
+                Zone = "AMBA"
+            },
+            new PostalCodeEntity
+            {
+                PostalCodeId = PostalCodeRosario2000Id,
+                Country = "Argentina",
+                Province = "Santa Fe",
+                Locality = "Rosario",
+                PostalCode = "2000",
+                IsActive = true,
+                Zone = "Litoral"
+            },
+            new PostalCodeEntity
+            {
+                PostalCodeId = PostalCodeLaPlata1900Id,
+                Country = "Argentina",
+                Province = "Buenos Aires",
+                Locality = "La Plata",
+                PostalCode = "1900",
+                IsActive = true,
+                Zone = "AMBA"
+            }
+        };
+
+        var existingPostalCodes = await dbContext.PostalCodes
+            .ToDictionaryAsync(current => current.PostalCode, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        foreach (var desiredPostalCode in desiredPostalCodes)
+        {
+            if (existingPostalCodes.TryGetValue(desiredPostalCode.PostalCode, out var existingPostalCode))
+            {
+                existingPostalCode.Country = desiredPostalCode.Country;
+                existingPostalCode.Province = desiredPostalCode.Province;
+                existingPostalCode.Locality = desiredPostalCode.Locality;
+                existingPostalCode.Zone = desiredPostalCode.Zone;
+                existingPostalCode.IsActive = desiredPostalCode.IsActive;
+                continue;
+            }
+
+            await dbContext.PostalCodes.AddAsync(desiredPostalCode, cancellationToken);
+        }
+
+        var desiredPriceLists = new[]
+        {
+            new { ListName = "Lista General", PostalCode = "1000", Value = 9.50m },
+            new { ListName = "Lista General", PostalCode = "1900", Value = 11.20m },
+            new { ListName = "Lista General", PostalCode = "2000", Value = 13.20m },
+            new { ListName = "Lista General", PostalCode = "5500", Value = 15.75m },
+            new { ListName = "Lista Premium", PostalCode = "1000", Value = 8.90m },
+            new { ListName = "Lista Premium", PostalCode = "1900", Value = 10.50m },
+            new { ListName = "Lista Premium", PostalCode = "2000", Value = 12.00m },
+            new { ListName = "Lista Premium", PostalCode = "5500", Value = 14.25m },
+            new { ListName = "Lista Mayorista", PostalCode = "1000", Value = 8.25m },
+            new { ListName = "Lista Mayorista", PostalCode = "1900", Value = 10.00m },
+            new { ListName = "Lista Mayorista", PostalCode = "2000", Value = 11.50m },
+            new { ListName = "Lista Mayorista", PostalCode = "5500", Value = 13.80m }
+        };
+
+        var existingPriceLists = await dbContext.PostalCodePriceLists
+            .ToListAsync(cancellationToken);
+
+        foreach (var desiredPriceList in desiredPriceLists)
+        {
+            var zone = desiredPostalCodes.Single(current => current.PostalCode == desiredPriceList.PostalCode).Zone;
+            var existingPriceList = existingPriceLists.SingleOrDefault(current =>
+                current.ListName == desiredPriceList.ListName &&
+                current.PostalCode == desiredPriceList.PostalCode);
+
+            if (existingPriceList is not null)
+            {
+                existingPriceList.Zone = zone;
+                existingPriceList.Value = desiredPriceList.Value;
+                continue;
+            }
+
+            await dbContext.PostalCodePriceLists.AddAsync(new PostalCodePriceListEntity
+            {
+                PostalCodePriceListId = Guid.NewGuid(),
+                ListName = desiredPriceList.ListName,
+                PostalCode = desiredPriceList.PostalCode,
+                Zone = zone,
+                Value = desiredPriceList.Value
+            }, cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private static async Task EnsureCustomerTypeSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
     {
         const string createCustomerTypesTableSql = """
@@ -597,6 +727,8 @@ BEGIN
         [Code] NVARCHAR(30) NOT NULL,
         [Name] NVARCHAR(120) NOT NULL,
         [Description] NVARCHAR(300) NOT NULL CONSTRAINT [DF_CustomerTypes_Description] DEFAULT N'',
+        [AssignedPriceListName] NVARCHAR(120) NOT NULL CONSTRAINT [DF_CustomerTypes_AssignedPriceListName] DEFAULT N'',
+        [InsuranceRatePercentage] DECIMAL(9,4) NOT NULL CONSTRAINT [DF_CustomerTypes_InsuranceRatePercentage] DEFAULT 0,
         [IsActive] BIT NOT NULL CONSTRAINT [DF_CustomerTypes_IsActive] DEFAULT 1,
         [UpdatedAt] DATETIME2 NOT NULL,
         CONSTRAINT [UQ_CustomerTypes_Code] UNIQUE ([Code])
@@ -621,9 +753,134 @@ BEGIN
 END
 """;
 
+        const string ensureAssignedPriceListNameColumnSql = """
+IF COL_LENGTH(N'[dbo].[CustomerTypes]', N'AssignedPriceListName') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[CustomerTypes] ADD [AssignedPriceListName] NVARCHAR(120) NOT NULL CONSTRAINT [DF_CustomerTypes_AssignedPriceListName] DEFAULT N'';
+END
+""";
+
+        const string ensureInsuranceRatePercentageColumnSql = """
+IF COL_LENGTH(N'[dbo].[CustomerTypes]', N'InsuranceRatePercentage') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[CustomerTypes] ADD [InsuranceRatePercentage] DECIMAL(9,4) NOT NULL CONSTRAINT [DF_CustomerTypes_InsuranceRatePercentage] DEFAULT 0;
+END
+""";
+
         await dbContext.Database.ExecuteSqlRawAsync(createCustomerTypesTableSql, cancellationToken);
         await dbContext.Database.ExecuteSqlRawAsync(ensureOrdersCustomerTypeIdColumnSql, cancellationToken);
         await dbContext.Database.ExecuteSqlRawAsync(ensureShipmentsCustomerTypeIdColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureAssignedPriceListNameColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureInsuranceRatePercentageColumnSql, cancellationToken);
+    }
+
+    private static async Task EnsureShipmentCostBreakdownSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        const string ensureDeclaredValueColumnSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'DeclaredMerchandiseValue') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [DeclaredMerchandiseValue] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_Shipments_DeclaredMerchandiseValue] DEFAULT 0;
+END
+""";
+
+        const string ensureBaseShippingCostColumnSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'BaseShippingCost') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [BaseShippingCost] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_Shipments_BaseShippingCost] DEFAULT 0;
+END
+""";
+
+        const string ensureInsuranceCostColumnSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'InsuranceCost') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [InsuranceCost] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_Shipments_InsuranceCost] DEFAULT 0;
+END
+""";
+
+        const string ensureAppliedPriceListNameColumnSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'AppliedPriceListName') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [AppliedPriceListName] NVARCHAR(120) NOT NULL CONSTRAINT [DF_Shipments_AppliedPriceListName] DEFAULT N'';
+END
+""";
+
+        const string ensureAppliedZoneColumnSql = """
+IF COL_LENGTH(N'[dbo].[Shipments]', N'AppliedZone') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Shipments] ADD [AppliedZone] NVARCHAR(60) NOT NULL CONSTRAINT [DF_Shipments_AppliedZone] DEFAULT N'';
+END
+""";
+
+        const string backfillBreakdownSql = """
+UPDATE [shipment]
+SET [shipment].[DeclaredMerchandiseValue] = ISNULL([order].[Total], 0),
+    [shipment].[BaseShippingCost] = CASE WHEN [shipment].[BaseShippingCost] = 0 THEN [shipment].[ShippingCost] ELSE [shipment].[BaseShippingCost] END,
+    [shipment].[AppliedPriceListName] = CASE WHEN LTRIM(RTRIM(COALESCE([shipment].[AppliedPriceListName], N''))) = N'' THEN COALESCE([customerType].[AssignedPriceListName], N'') ELSE [shipment].[AppliedPriceListName] END,
+    [shipment].[AppliedZone] = CASE WHEN LTRIM(RTRIM(COALESCE([shipment].[AppliedZone], N''))) = N'' THEN COALESCE([postalCode].[Zone], N'') ELSE [shipment].[AppliedZone] END
+FROM [dbo].[Shipments] AS [shipment]
+LEFT JOIN [dbo].[Orders] AS [order]
+    ON [order].[OrderId] = [shipment].[OrderId]
+LEFT JOIN [dbo].[CustomerTypes] AS [customerType]
+    ON [customerType].[CustomerTypeId] = [shipment].[CustomerTypeId]
+LEFT JOIN [dbo].[PostalCodes] AS [postalCode]
+    ON [postalCode].[PostalCode] = [order].[DestinationPostalCode];
+""";
+
+        await dbContext.Database.ExecuteSqlRawAsync(ensureDeclaredValueColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureBaseShippingCostColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureInsuranceCostColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureAppliedPriceListNameColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(ensureAppliedZoneColumnSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(backfillBreakdownSql, cancellationToken);
+    }
+
+    private static async Task EnsurePostalCatalogSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        const string createPostalCodesTableSql = """
+IF OBJECT_ID(N'[dbo].[PostalCodes]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[PostalCodes]
+    (
+        [PostalCodeId] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        [Country] NVARCHAR(80) NOT NULL,
+        [Province] NVARCHAR(120) NOT NULL,
+        [Locality] NVARCHAR(120) NOT NULL,
+        [PostalCode] NVARCHAR(20) NOT NULL,
+        [IsActive] BIT NOT NULL CONSTRAINT [DF_PostalCodes_IsActive] DEFAULT 1,
+        [Zone] NVARCHAR(60) NOT NULL
+    );
+
+    CREATE UNIQUE INDEX [UQ_PostalCodes_CountryProvinceLocalityPostalCode]
+        ON [dbo].[PostalCodes]([Country], [Province], [Locality], [PostalCode]);
+
+    CREATE INDEX [IX_PostalCodes_IsActive_CountryProvinceLocality]
+        ON [dbo].[PostalCodes]([IsActive], [Country], [Province], [Locality]);
+END
+""";
+
+        const string createPostalCodePriceListsTableSql = """
+IF OBJECT_ID(N'[dbo].[PostalCodePriceLists]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[PostalCodePriceLists]
+    (
+        [PostalCodePriceListId] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        [ListName] NVARCHAR(120) NOT NULL,
+        [PostalCode] NVARCHAR(20) NOT NULL,
+        [Value] DECIMAL(18,2) NOT NULL,
+        [Zone] NVARCHAR(60) NOT NULL,
+        CONSTRAINT [CK_PostalCodePriceLists_Value] CHECK ([Value] >= 0)
+    );
+
+    CREATE UNIQUE INDEX [UQ_PostalCodePriceLists_ListPostalCodeZone]
+        ON [dbo].[PostalCodePriceLists]([ListName], [PostalCode], [Zone]);
+
+    CREATE INDEX [IX_PostalCodePriceLists_PostalCodeZone]
+        ON [dbo].[PostalCodePriceLists]([PostalCode], [Zone]);
+END
+""";
+
+        await dbContext.Database.ExecuteSqlRawAsync(createPostalCodesTableSql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(createPostalCodePriceListsTableSql, cancellationToken);
     }
 
     private static async Task EnsureCarrierSchemaAsync(OmsDbContext dbContext, CancellationToken cancellationToken)

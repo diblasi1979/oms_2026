@@ -10,15 +10,14 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const settings = ref<ShipmentPricingSettings>({
-  defaultBaseCost: 0,
-  insuranceFlatCost: 0,
-  rules: [],
+  priceLists: [],
 })
 const carriers = ref<CarrierRecord[]>([])
 const customerTypes = ref<CustomerTypeRecord[]>([])
 const quoteCustomerTypeId = ref('')
 const quoteCarrierId = ref('')
-const quotePostalCode = ref('1001')
+const quotePostalCode = ref('1000')
+const quoteDeclaredValue = ref(1000)
 const includeInsurance = ref(true)
 const quote = ref<ShipmentPricingQuote | null>(null)
 const isLoading = ref(false)
@@ -55,17 +54,16 @@ async function loadSettings() {
 }
 
 function addRule() {
-  settings.value.rules.push({
-    ruleName: '',
-    customerTypeId: customerTypes.value[0]?.id ?? '',
-    postalCodePrefix: '',
-    carrierId: carriers.value[0]?.id ?? '',
-    baseCost: 0,
+  settings.value.priceLists.push({
+    listName: customerTypes.value[0]?.assignedPriceListName ?? '',
+    postalCode: '',
+    zone: '',
+    value: 0,
   })
 }
 
 function removeRule(index: number) {
-  settings.value.rules.splice(index, 1)
+  settings.value.priceLists.splice(index, 1)
 }
 
 async function saveSettings() {
@@ -93,7 +91,7 @@ async function loadQuote() {
       return
     }
 
-    quote.value = await calculateShipmentQuote(authStore.token, quoteCustomerTypeId.value, quoteCarrierId.value, quotePostalCode.value, includeInsurance.value)
+    quote.value = await calculateShipmentQuote(authStore.token, quoteCustomerTypeId.value, quoteCarrierId.value, quotePostalCode.value, quoteDeclaredValue.value, includeInsurance.value)
   } finally {
     isQuoting.value = false
   }
@@ -113,7 +111,7 @@ onMounted(loadSettings)
       <div class="detail-hero-copy">
         <p class="eyebrow">Administración logística</p>
         <h1>Tarifas de envío y seguro</h1>
-        <p class="lede">Define la tarifa base por prefijo postal y el cargo de seguro que se sumará al crear cada envío.</p>
+        <p class="lede">Administrá las listas por código postal exacto y simulá la tarifa final usando la lista asignada al tipo de cliente y su porcentaje de seguro.</p>
       </div>
       <div class="detail-hero-side">
         <div class="detail-kicker">
@@ -130,17 +128,21 @@ onMounted(loadSettings)
 
       <div class="detail-grid">
         <Card class="panel-card">
-          <template #title>Costos globales</template>
+          <template #title>Regla vigente</template>
           <template #content>
-            <div class="settings-form-grid">
-              <label>
-                <span>Tarifa base por defecto</span>
-                <input v-model.number="settings.defaultBaseCost" class="p-inputtext" type="number" min="0" step="0.01" />
-              </label>
-              <label>
-                <span>Costo fijo de seguro</span>
-                <input v-model.number="settings.insuranceFlatCost" class="p-inputtext" type="number" min="0" step="0.01" />
-              </label>
+            <div class="quote-card">
+              <div>
+                <span>Tarifas configuradas</span>
+                <strong>{{ settings.priceLists.length }}</strong>
+              </div>
+              <div>
+                <span>Listas únicas</span>
+                <strong>{{ new Set(settings.priceLists.map((priceList) => priceList.listName)).size }}</strong>
+              </div>
+              <div>
+                <span>Seguros por cliente</span>
+                <strong>Desde Tipos de cliente</strong>
+              </div>
             </div>
           </template>
         </Card>
@@ -161,6 +163,10 @@ onMounted(loadSettings)
                 <span>Código postal destino</span>
                 <input v-model="quotePostalCode" class="p-inputtext" type="text" placeholder="1001" />
               </label>
+              <label>
+                <span>Valor declarado</span>
+                <input v-model.number="quoteDeclaredValue" class="p-inputtext" type="number" min="0" step="0.01" />
+              </label>
               <label class="settings-check-row">
                 <span>Incluir seguro</span>
                 <input v-model="includeInsurance" type="checkbox" />
@@ -172,12 +178,20 @@ onMounted(loadSettings)
 
             <div v-if="quote" class="quote-card">
               <div>
-                <span>Regla aplicada</span>
-                <strong>{{ quote.matchedRuleName || 'Tarifa por defecto' }}</strong>
+                <span>Lista aplicada</span>
+                <strong>{{ quote.assignedPriceListName }}</strong>
               </div>
               <div>
                 <span>Cliente / carrier</span>
                 <strong>{{ quote.customerTypeName }} · {{ quote.carrierName }}</strong>
+              </div>
+              <div>
+                <span>Zona</span>
+                <strong>{{ quote.matchedZone }}</strong>
+              </div>
+              <div>
+                <span>% seguro</span>
+                <strong>{{ quote.insuranceRatePercentage.toFixed(2) }}%</strong>
               </div>
               <div>
                 <span>Tarifa base</span>
@@ -196,7 +210,7 @@ onMounted(loadSettings)
         </Card>
 
         <Card class="panel-card detail-span-2">
-          <template #title>Reglas por código postal</template>
+          <template #title>Tarifas por lista y código postal</template>
           <template #content>
             <div class="settings-actions-row">
               <Button label="Agregar regla" icon="pi pi-plus" @click="addRule" />
@@ -206,30 +220,26 @@ onMounted(loadSettings)
               <table class="rules-table">
                 <thead>
                   <tr>
+                    <th>Lista</th>
+                    <th>Código postal</th>
                     <th>Zona</th>
-                    <th>Tipo cliente</th>
-                    <th>Prefijo postal</th>
-                    <th>Carrier</th>
-                    <th>Tarifa base</th>
+                    <th>Tarifa</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(rule, index) in settings.rules" :key="rule.id ?? `new-${index}`">
+                  <tr v-for="(rule, index) in settings.priceLists" :key="rule.id ?? `new-${index}`">
                     <td>
-                      <input v-model="rule.ruleName" class="p-inputtext" type="text" placeholder="AMBA" />
+                      <input v-model="rule.listName" class="p-inputtext" type="text" placeholder="Lista General" />
                     </td>
                     <td>
-                      <Dropdown v-model="rule.customerTypeId" :options="customerTypeOptions" option-label="label" option-value="value" placeholder="Tipo" />
+                      <input v-model="rule.postalCode" class="p-inputtext" type="text" placeholder="1000" />
                     </td>
                     <td>
-                      <input v-model="rule.postalCodePrefix" class="p-inputtext" type="text" placeholder="1" />
+                      <InputText :model-value="rule.zone || 'Se completa al guardar'" disabled />
                     </td>
                     <td>
-                      <Dropdown v-model="rule.carrierId" :options="carriers.map((carrier) => ({ label: carrier.name, value: carrier.id }))" option-label="label" option-value="value" placeholder="Carrier" />
-                    </td>
-                    <td>
-                      <input v-model.number="rule.baseCost" class="p-inputtext" type="number" min="0" step="0.01" />
+                      <input v-model.number="rule.value" class="p-inputtext" type="number" min="0" step="0.01" />
                     </td>
                     <td>
                       <Button label="Quitar" severity="secondary" outlined icon="pi pi-trash" @click="removeRule(index)" />

@@ -70,7 +70,7 @@ public sealed class ShipmentsService
             throw new InvalidOperationException("El carrier seleccionado no admite seguro.");
         }
 
-        var pricingQuote = await _shipmentPricingService.QuoteAsync(order.CustomerTypeId, carrier.CarrierId, order.DestinationPostalCode, request.IncludeInsurance, cancellationToken);
+        var pricingQuote = await _shipmentPricingService.QuoteAsync(order.CustomerTypeId, carrier.CarrierId, order.DestinationPostalCode, order.Total, request.IncludeInsurance, cancellationToken);
 
         var shipment = new ShipmentEntity
         {
@@ -88,7 +88,12 @@ public sealed class ShipmentsService
             HeightCm = request.HeightCm,
             WidthCm = request.WidthCm,
             LengthCm = request.LengthCm,
+            DeclaredMerchandiseValue = order.Total,
+            BaseShippingCost = pricingQuote.BaseShippingCost,
+            InsuranceCost = pricingQuote.InsuranceCost,
             ShippingCost = pricingQuote.TotalShippingCost,
+            AppliedPriceListName = pricingQuote.AssignedPriceListName,
+            AppliedZone = pricingQuote.MatchedZone,
             DestinationAddress = request.DestinationAddress,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -98,7 +103,7 @@ public sealed class ShipmentsService
                 {
                     ShipmentEventId = Guid.NewGuid(),
                     Status = "LabelCreated",
-                    Notes = $"Etiqueta simulada generada en OMS. Tarifa base {pricingQuote.BaseShippingCost:0.00} + seguro {pricingQuote.InsuranceCost:0.00}.",
+                    Notes = $"Etiqueta simulada generada en OMS. Lista {pricingQuote.AssignedPriceListName} / zona {pricingQuote.MatchedZone}. Tarifa base {pricingQuote.BaseShippingCost:0.00} + seguro {pricingQuote.InsuranceCost:0.00}.",
                     EventTimestamp = DateTime.UtcNow
                 }
             }
@@ -213,9 +218,12 @@ public sealed class ShipmentsService
         HeightCm = shipment.HeightCm,
         WidthCm = shipment.WidthCm,
         LengthCm = shipment.LengthCm,
-        BaseShippingCost = shipment.ShippingCost,
-        InsuranceCost = 0m,
+        DeclaredMerchandiseValue = shipment.DeclaredMerchandiseValue,
+        BaseShippingCost = shipment.BaseShippingCost,
+        InsuranceCost = shipment.InsuranceCost,
         ShippingCost = shipment.ShippingCost,
+        AppliedPriceListName = shipment.AppliedPriceListName,
+        AppliedZone = shipment.AppliedZone,
         DestinationPostalCode = shipment.Order.DestinationPostalCode,
         DestinationAddress = shipment.DestinationAddress,
         Events = shipment.Events.OrderByDescending(@event => @event.EventTimestamp).Select(@event => new ShipmentEventResponse

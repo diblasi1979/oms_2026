@@ -107,6 +107,8 @@ public sealed class CustomerTypeResponse
     public string Code { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
+    public string AssignedPriceListName { get; init; } = string.Empty;
+    public decimal InsuranceRatePercentage { get; init; }
     public bool IsActive { get; init; }
 }
 
@@ -115,6 +117,8 @@ public sealed class UpsertCustomerTypeRequest
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string AssignedPriceListName { get; set; } = string.Empty;
+    public decimal InsuranceRatePercentage { get; set; }
     public bool IsActive { get; set; } = true;
 }
 
